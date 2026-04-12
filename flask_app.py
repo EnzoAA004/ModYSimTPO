@@ -7,6 +7,7 @@ import os
 from dataclasses import asdict
 from typing import Any
 
+import sympy as sp
 from flask import Flask, jsonify, render_template, request
 
 from core.metodos_numericos.aitken import aitken_desde_punto_fijo
@@ -21,7 +22,7 @@ from core.metodos_numericos.integracion import (
 from core.metodos_numericos.interpolacion import diferencia_central, interpolacion_lagrange
 from core.metodos_numericos.monte_carlo import estimar_pi_geometrico, integracion_montecarlo
 from core.metodos_numericos.raices import biseccion, newton_raphson, punto_fijo
-from core.metodos_numericos.sistemas_lineales import eliminacion_gauss
+# sistemas_lineales removido del alcance del proyecto
 from core.utils.parser_funciones import expression_to_callable
 
 _BASE = os.path.dirname(os.path.abspath(__file__))
@@ -47,6 +48,30 @@ def _safe(obj: Any) -> Any:
     if isinstance(obj, (list, tuple)):
         return [_safe(v) for v in obj]
     return obj
+
+
+def _parse_num(val) -> float:
+    """Parsea un valor numérico que puede ser float, int, o string simbólico.
+
+    Soporta expresiones como 'pi', 'e', '2*pi', 'pi/2', 'sqrt(2)', etc.
+    """
+    if val is None:
+        raise ValueError("Se requiere un valor numérico")
+    if isinstance(val, (int, float)):
+        return float(val)
+    s = str(val).strip()
+    if not s:
+        raise ValueError("Se requiere un valor numérico")
+    # Intentar conversión directa primero (rápido)
+    try:
+        return float(s)
+    except ValueError:
+        pass
+    # Parsear con SymPy para soportar pi, e, sqrt, etc.
+    expr = sp.sympify(s, locals={"pi": sp.pi, "e": sp.E, "sqrt": sp.sqrt,
+                                  "sin": sp.sin, "cos": sp.cos, "tan": sp.tan,
+                                  "log": sp.log, "exp": sp.exp, "abs": sp.Abs})
+    return float(expr.evalf())
 
 
 def _json_ok(data: dict) -> tuple:
@@ -78,9 +103,9 @@ def index():
 def api_biseccion():
     try:
         d = _body()
-        r = biseccion(d["f_expr"], float(d["a"]), float(d["b"]),
-                       float(d.get("tolerancia", 1e-6)),
-                       int(d.get("max_iter", 100)))
+        r = biseccion(d["f_expr"], _parse_num(d["a"]), _parse_num(d["b"]),
+                       _parse_num(d.get("tolerancia", 1e-6)),
+                       int(_parse_num(d.get("max_iter", 100))))
         return _json_ok({
             "convergio": r.convergio,
             "aproximacion": r.aproximacion,
@@ -95,9 +120,9 @@ def api_biseccion():
 def api_punto_fijo():
     try:
         d = _body()
-        r = punto_fijo(d["g_expr"], float(d["x0"]),
-                       float(d.get("tolerancia", 1e-6)),
-                       int(d.get("max_iter", 100)))
+        r = punto_fijo(d["g_expr"], _parse_num(d["x0"]),
+                       _parse_num(d.get("tolerancia", 1e-6)),
+                       int(_parse_num(d.get("max_iter", 100))))
         return _json_ok({
             "convergio": r.convergio,
             "aproximacion": r.aproximacion,
@@ -112,10 +137,10 @@ def api_punto_fijo():
 def api_newton():
     try:
         d = _body()
-        r = newton_raphson(d["f_expr"], float(d["x0"]),
+        r = newton_raphson(d["f_expr"], _parse_num(d["x0"]),
                            d.get("df_expr") or None,
-                           float(d.get("tolerancia", 1e-6)),
-                           int(d.get("max_iter", 100)))
+                           _parse_num(d.get("tolerancia", 1e-6)),
+                           int(_parse_num(d.get("max_iter", 100))))
         return _json_ok({
             "convergio": r.convergio,
             "aproximacion": r.aproximacion,
@@ -130,9 +155,9 @@ def api_newton():
 def api_aitken():
     try:
         d = _body()
-        r = aitken_desde_punto_fijo(d["g_expr"], float(d["x0"]),
-                                     float(d.get("tolerancia", 1e-6)),
-                                     int(d.get("max_iter", 100)))
+        r = aitken_desde_punto_fijo(d["g_expr"], _parse_num(d["x0"]),
+                                     _parse_num(d.get("tolerancia", 1e-6)),
+                                     int(_parse_num(d.get("max_iter", 100))))
         return _json_ok({
             "convergio": r.convergio,
             "aproximacion": r.aproximacion,
@@ -151,14 +176,14 @@ def api_aitken():
 def api_lagrange():
     try:
         d = _body()
-        puntos = [(float(p[0]), float(p[1])) for p in d["puntos"]]
-        r = interpolacion_lagrange(puntos, float(d["x_eval"]))
+        puntos = [(_parse_num(p[0]), _parse_num(p[1])) for p in d["puntos"]]
+        r = interpolacion_lagrange(puntos, _parse_num(d["x_eval"]))
         return _json_ok({
             "valor_interpolado": r.valor_interpolado,
             "mensaje": r.mensaje,
             "polinomio": r.metadatos.get("polinomio", ""),
             "puntos": puntos,
-            "x_eval": float(d["x_eval"]),
+            "x_eval": _parse_num(d["x_eval"]),
         })
     except Exception as exc:
         return _json_err(exc)
@@ -168,8 +193,8 @@ def api_lagrange():
 def api_derivada_central():
     try:
         d = _body()
-        valor = diferencia_central(d["f_expr"], float(d["x"]),
-                                    float(d.get("h", 1e-4)))
+        valor = diferencia_central(d["f_expr"], _parse_num(d["x"]),
+                                    _parse_num(d.get("h", 1e-4)))
         return _json_ok({"derivada": valor, "mensaje": f"f'({d['x']}) ≈ {valor:.10f}"})
     except Exception as exc:
         return _json_err(exc)
@@ -180,9 +205,9 @@ def api_derivada_central():
 # ---------------------------------------------------------------------------
 
 def _api_integracion(metodo_fn, d):
-    valor_exacto = float(d["valor_exacto"]) if d.get("valor_exacto") not in (None, "", "null") else None
-    r = metodo_fn(d["f_expr"], float(d["a"]), float(d["b"]),
-                  int(d["n"]), valor_exacto)
+    valor_exacto = _parse_num(d["valor_exacto"]) if d.get("valor_exacto") not in (None, "", "null") else None
+    r = metodo_fn(d["f_expr"], _parse_num(d["a"]), _parse_num(d["b"]),
+                  int(_parse_num(d["n"])), valor_exacto)
     return _json_ok({
         "valor_aproximado": r.valor_aproximado,
         "valor_exacto": r.valor_exacto,
@@ -229,9 +254,9 @@ def api_rectangulo():
 def api_gauss():
     try:
         d = _body()
-        valor_exacto = float(d["valor_exacto"]) if d.get("valor_exacto") not in (None, "", "null") else None
-        r = cuadratura_gauss_legendre(d["f_expr"], float(d["a"]), float(d["b"]),
-                                       int(d.get("n", 3)), valor_exacto)
+        valor_exacto = _parse_num(d["valor_exacto"]) if d.get("valor_exacto") not in (None, "", "null") else None
+        r = cuadratura_gauss_legendre(d["f_expr"], _parse_num(d["a"]), _parse_num(d["b"]),
+                                       int(_parse_num(d.get("n", 3))), valor_exacto)
         return _json_ok({
             "valor_aproximado": r.valor_aproximado,
             "valor_exacto": r.valor_exacto,
@@ -252,10 +277,10 @@ def api_gauss():
 def api_mc_integral():
     try:
         d = _body()
-        r = integracion_montecarlo(d["f_expr"], float(d["a"]), float(d["b"]),
-                                    int(d.get("n", 5000)),
+        r = integracion_montecarlo(d["f_expr"], _parse_num(d["a"]), _parse_num(d["b"]),
+                                    int(_parse_num(d.get("n", 5000))),
                                     float(d.get("confianza", 0.95)),
-                                    int(d["seed"]) if d.get("seed") else None)
+                                    int(_parse_num(d["seed"])) if d.get("seed") else None)
         return _json_ok({
             "estimacion": r.estimacion,
             "desvio_muestral": r.desvio_muestral,
@@ -274,7 +299,7 @@ def api_mc_integral():
 def api_mc_pi():
     try:
         d = _body()
-        r = estimar_pi_geometrico(int(d.get("n", 10000)),
+        r = estimar_pi_geometrico(int(_parse_num(d.get("n", 10000))),
                                    int(d["seed"]) if d.get("seed") else None)
         return _json_ok({
             "estimacion": r.estimacion,
@@ -296,8 +321,8 @@ def api_mc_pi():
 
 def _api_edo(metodo_fn, d):
     sol = d.get("solucion_exacta") or None
-    r = metodo_fn(d["ode_expr"], float(d["t0"]), float(d["y0"]),
-                  float(d["h"]), int(d["pasos"]), sol)
+    r = metodo_fn(d["ode_expr"], _parse_num(d["t0"]), _parse_num(d["y0"]),
+                  _parse_num(d["h"]), int(_parse_num(d["pasos"])), sol)
     return _json_ok({
         "mensaje": r.mensaje,
         "pasos": [asdict(p) for p in r.pasos],
@@ -328,24 +353,7 @@ def api_rk4():
         return _json_err(exc)
 
 
-# ---------------------------------------------------------------------------
-#  SISTEMAS LINEALES
-# ---------------------------------------------------------------------------
 
-@app.route("/api/sistemas/gauss", methods=["POST"])
-def api_gauss_sistema():
-    try:
-        d = _body()
-        matriz = [[float(c) for c in fila] for fila in d["matriz"]]
-        vector = [float(v) for v in d["vector"]]
-        r = eliminacion_gauss(matriz, vector)
-        return _json_ok({
-            "solucion": r.solucion,
-            "residuo": r.residuo,
-            "mensaje": r.mensaje,
-        })
-    except Exception as exc:
-        return _json_err(exc)
 
 
 # ---------------------------------------------------------------------------
@@ -358,8 +366,8 @@ def api_evaluar_curva():
     try:
         d = _body()
         f = expression_to_callable(d["f_expr"], ("x",))
-        a = float(d["a"])
-        b = float(d["b"])
+        a = _parse_num(d["a"])
+        b = _parse_num(d["b"])
         n_puntos = int(d.get("n_puntos", 300))
         xs = [a + (b - a) * i / n_puntos for i in range(n_puntos + 1)]
         ys = []

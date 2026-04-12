@@ -177,33 +177,33 @@
         let payload;
 
         try {
-            const tol = parseFloat($('#raices-tol').value);
-            const maxIter = parseInt($('#raices-maxiter').value, 10);
+            const tol = $('#raices-tol').value;
+            const maxIter = $('#raices-maxiter').value;
 
             if (metodo === 'biseccion') {
                 payload = {
                     f_expr: $('#raices-f-expr').value,
-                    a: parseFloat($('#raices-a').value),
-                    b: parseFloat($('#raices-b').value),
+                    a: $('#raices-a').value,
+                    b: $('#raices-b').value,
                     tolerancia: tol, max_iter: maxIter,
                 };
             } else if (metodo === 'punto-fijo') {
                 payload = {
                     g_expr: $('#raices-g-expr').value,
-                    x0: parseFloat($('#raices-pf-x0').value),
+                    x0: $('#raices-pf-x0').value,
                     tolerancia: tol, max_iter: maxIter,
                 };
             } else if (metodo === 'newton-raphson') {
                 payload = {
                     f_expr: $('#raices-nr-f').value,
                     df_expr: $('#raices-nr-df').value || '',
-                    x0: parseFloat($('#raices-nr-x0').value),
+                    x0: $('#raices-nr-x0').value,
                     tolerancia: tol, max_iter: maxIter,
                 };
             } else {
                 payload = {
                     g_expr: $('#raices-aitken-g').value,
-                    x0: parseFloat($('#raices-aitken-x0').value),
+                    x0: $('#raices-aitken-x0').value,
                     tolerancia: tol, max_iter: maxIter,
                 };
             }
@@ -316,7 +316,7 @@
             setLoading(btn, true);
             $('#status-text').textContent = 'Calculando…';
 
-            const xEval = parseFloat($('#interp-xeval').value);
+            const xEval = $('#interp-xeval').value;
             const res = await API.lagrange({ puntos, x_eval: xEval });
             const area = $('#interp-resultado');
             area.style.display = '';
@@ -379,8 +379,8 @@
             setLoading(btn, true);
             const res = await API.derivadaCentral({
                 f_expr: $('#deriv-expr').value,
-                x: parseFloat($('#deriv-x').value),
-                h: parseFloat($('#deriv-h').value),
+                x: $('#deriv-x').value,
+                h: $('#deriv-h').value,
             });
             const area = $('#interp-resultado');
             area.style.display = '';
@@ -403,9 +403,9 @@
         try {
             const payload = {
                 f_expr: $('#integ-f').value,
-                a: parseFloat($('#integ-a').value),
-                b: parseFloat($('#integ-b').value),
-                n: parseInt($('#integ-n').value, 10),
+                a: $('#integ-a').value,
+                b: $('#integ-b').value,
+                n: $('#integ-n').value,
                 valor_exacto: $('#integ-exacto').value.trim() || null,
             };
 
@@ -486,15 +486,15 @@
             if (modo === 'integral') {
                 res = await API.mcIntegral({
                     f_expr: $('#mc-f').value,
-                    a: parseFloat($('#mc-a').value),
-                    b: parseFloat($('#mc-b').value),
-                    n: parseInt($('#mc-n').value, 10),
-                    seed: $('#mc-seed').value ? parseInt($('#mc-seed').value, 10) : null,
+                    a: $('#mc-a').value,
+                    b: $('#mc-b').value,
+                    n: $('#mc-n').value,
+                    seed: $('#mc-seed').value || null,
                 });
             } else {
                 res = await API.mcPi({
-                    n: parseInt($('#mc-n').value, 10),
-                    seed: $('#mc-seed').value ? parseInt($('#mc-seed').value, 10) : null,
+                    n: $('#mc-n').value,
+                    seed: $('#mc-seed').value || null,
                 });
             }
 
@@ -558,10 +558,10 @@
             const payload = {
                 ode_expr: $('#edo-expr').value,
                 solucion_exacta: $('#edo-exacta').value.trim() || null,
-                t0: parseFloat($('#edo-t0').value),
-                y0: parseFloat($('#edo-y0').value),
-                h: parseFloat($('#edo-h').value),
-                pasos: parseInt($('#edo-pasos').value, 10),
+                t0: $('#edo-t0').value,
+                y0: $('#edo-y0').value,
+                h: $('#edo-h').value,
+                pasos: $('#edo-pasos').value,
             };
 
             setLoading(btn, true);
