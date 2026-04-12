@@ -48,8 +48,7 @@ const API = (() => {
         // Caso práctico integrado
         casoPracticoIntegrado: (d = {}) => fetchJSON('/api/casos/practico-integrado', d),
 
-        // Sistemas lineales
-        gauss:          (d) => fetchJSON('/api/sistemas/gauss', d),
+
 
         // Utilidad
         evaluarCurva:   (d) => fetchJSON('/api/util/evaluar-curva', d),

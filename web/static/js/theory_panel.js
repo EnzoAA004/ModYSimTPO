@@ -164,32 +164,84 @@ const TheoryPanel = (() => {
         `,
 
         'caso-practico': `
-            <h4>Caso Práctico Integrado</h4>
-            <p>Se modela el flujo de calor de una hornalla sobre una superficie alrededor del fuego.</p>
+            <h4>🔥 Caso Práctico: Transferencia de Calor</h4>
+            <p>Se modela el flujo de calor de una hornalla sobre una superficie,
+            conectando cada familia de métodos numéricos con un problema real de ingeniería térmica.</p>
 
-            <h4>1) Distancia segura por raíces</h4>
-            <p>Se resuelve la distancia radial donde la temperatura cae por debajo del umbral seguro (por ejemplo 60 C).</p>
-
-            <h4>2) Sensores + interpolación</h4>
-            <p>Con mediciones discretas se estima temperatura en puntos intermedios y el gradiente térmico:</p>
-            <div class="formula-block">
-                $$\frac{dT}{dr}(r) \approx \frac{T(r+h)-T(r-h)}{2h}$$
+            <div class="theory-step">
+                <span class="step-badge">1</span>
+                <div>
+                    <h4>Distancia segura — Raíces</h4>
+                    <p>Se busca <em>r*</em> tal que la temperatura radial caiga al umbral seguro T<sub>s</sub> :</p>
+                    <div class="formula-block">
+                        $$T(r) - T_s = 0$$
+                    </div>
+                    <p>Modelo de decaimiento radial empleado:</p>
+                    <div class="formula-block">
+                        $$T(r) = T_{\\text{amb}} + \\frac{Q}{2\\pi k}\\, e^{-\\alpha\\, r^2}$$
+                    </div>
+                </div>
             </div>
 
-            <h4>3) Potencia total por integración</h4>
-            <p>Se integra el flujo radial para obtener calor total sobre un disco de radio dado.</p>
+            <div class="theory-step">
+                <span class="step-badge">2</span>
+                <div>
+                    <h4>Sensores + Interpolación</h4>
+                    <p>Con mediciones discretas (sensores) se estima temperatura en puntos intermedios
+                    y el <strong>gradiente térmico</strong> por diferencia central:</p>
+                    <div class="formula-block">
+                        $$\\frac{dT}{dr}(r) \\approx \\frac{T(r+h) - T(r-h)}{2h}$$
+                    </div>
+                </div>
+            </div>
 
-            <h4>4) Incertidumbre con Monte Carlo</h4>
-            <p>Se compara la integral determinística contra una estimación estocástica con intervalo de confianza.</p>
+            <div class="theory-step">
+                <span class="step-badge">3</span>
+                <div>
+                    <h4>Potencia total — Integración</h4>
+                    <p>La potencia térmica acumulada sobre un disco de radio R se obtiene integrando:</p>
+                    <div class="formula-block">
+                        $$P = \\int_0^R 2\\pi\\, r\\, q(r)\\, dr$$
+                    </div>
+                    <p>Se comparan Trapecio, Simpson 1/3, 3/8, Rectángulo y Gauss-Legendre.</p>
+                </div>
+            </div>
 
-            <h4>5) Evolución temporal con EDO</h4>
-            <p>Euler, Heun y RK4 simulan el calentamiento de una sartén sobre la hornalla.</p>
+            <div class="theory-step">
+                <span class="step-badge">4</span>
+                <div>
+                    <h4>Incertidumbre — Monte Carlo</h4>
+                    <p>Se estima la misma integral por muestreo aleatorio y se construye un
+                    <strong>intervalo de confianza</strong> al 95%:</p>
+                    <div class="formula-block">
+                        $$\\hat{P} = \\frac{R}{N}\\sum_{i=1}^{N} 2\\pi\\, r_i\\, q(r_i),\\; r_i \\sim U(0,R)$$
+                    </div>
+                </div>
+            </div>
 
-            <h4>6) Mapa térmico continuo animado</h4>
-            <p>Se observa la propagación de calor en el plano (x, y) durante el encendido de la hornalla.</p>
+            <div class="theory-step">
+                <span class="step-badge">5</span>
+                <div>
+                    <h4>Evolución temporal — EDO</h4>
+                    <p>La temperatura de una sartén sobre la hornalla sigue la ley de enfriamiento/calentamiento de Newton:</p>
+                    <div class="formula-block">
+                        $$\\frac{dT}{dt} = k\\,(T_{\\text{fuente}} - T) $$
+                    </div>
+                    <p>Se comparan Euler, Heun y RK4 contra la solución exacta.</p>
+                </div>
+            </div>
+
+            <div class="theory-step">
+                <span class="step-badge">6</span>
+                <div>
+                    <h4>Mapa térmico animado</h4>
+                    <p>Visualización 2D de la propagación de calor en el plano (x, y) durante el encendido.</p>
+                </div>
+            </div>
 
             <div class="theory-note">
-                <strong>Objetivo:</strong> conectar visualmente un problema real de transferencia de calor con cada familia de métodos numéricos.
+                <strong>Objetivo:</strong> Conectar visualmente un problema real de transferencia de calor
+                con cada familia de métodos numéricos del curso.
             </div>
         `,
     };

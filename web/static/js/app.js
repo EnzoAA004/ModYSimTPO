@@ -724,24 +724,30 @@
             backgroundColor: 'transparent',
             tooltip: {
                 trigger: 'item',
-                formatter: (p) => `x=${p.value[0].toFixed(3)} m<br/>y=${p.value[1].toFixed(3)} m<br/>T=${p.value[2].toFixed(1)} C`,
+                backgroundColor: 'rgba(10,10,20,0.9)',
+                borderColor: 'rgba(6,182,212,0.3)',
+                textStyle: { color: '#e2e8f0', fontSize: 12 },
+                formatter: (p) => `<strong style="color:#67e8f9">Punto</strong><br/>x = ${p.value[0].toFixed(3)} m<br/>y = ${p.value[1].toFixed(3)} m<br/>T = ${p.value[2].toFixed(1)} °C`,
             },
             grid: { left: 56, right: 24, top: 28, bottom: 42 },
             xAxis: {
                 type: 'value',
                 name: 'x (m)',
+                nameTextStyle: { color: '#94a3b8', fontSize: 11 },
                 min: -0.9,
                 max: 0.9,
                 axisLine: { lineStyle: { color: '#334155' } },
                 axisLabel: { color: '#94a3b8' },
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.06)' } },
             },
             yAxis: {
                 type: 'value',
                 name: 'y (m)',
+                nameTextStyle: { color: '#94a3b8', fontSize: 11 },
                 min: -0.9,
                 max: 0.9,
                 axisLine: { lineStyle: { color: '#334155' } },
-                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.12)' } },
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.08)' } },
                 axisLabel: { color: '#94a3b8' },
             },
             visualMap: {
@@ -753,50 +759,61 @@
                 right: 8,
                 top: 'middle',
                 textStyle: { color: '#cbd5e1' },
-                inRange: { color: ['#1d4ed8', '#06b6d4', '#22c55e', '#f59e0b', '#ef4444'] },
+                inRange: { color: ['#1e3a5f', '#0d9488', '#22c55e', '#f59e0b', '#ef4444', '#fbbf24'] },
             },
             series: [{
                 name: 'Mapa térmico',
                 type: 'heatmap',
                 data: res.visualizacion.heatmap_estatico,
-                blurSize: 16,
+                blurSize: 18,
                 pointSize: 5,
-                itemStyle: { opacity: 0.52 },
+                itemStyle: { opacity: 0.55 },
                 z: 1,
             }, {
                 name: 'Temperatura',
                 type: 'scatter',
                 data: res.visualizacion.nube_puntos,
                 symbolSize: 7,
-                itemStyle: { opacity: 0.82 },
-                emphasis: { scale: 1.6 },
+                itemStyle: { opacity: 0.85 },
+                emphasis: { scale: 1.8, itemStyle: { shadowBlur: 10, shadowColor: 'rgba(6,182,212,0.5)' } },
                 z: 2,
             }, {
                 name: 'Centro hornalla',
                 type: 'scatter',
                 data: [[0, 0, 0]],
-                symbolSize: 14,
-                itemStyle: { color: '#f8fafc', borderColor: '#0f172a', borderWidth: 2 },
+                symbolSize: 16,
+                symbol: 'diamond',
+                itemStyle: { color: '#fbbf24', borderColor: '#0f172a', borderWidth: 2 },
                 z: 3,
             }],
         });
 
+        // ---- Perfil Radial + Sensores ----
+        const rSafe = res.aplicacion.distancia_segura_m;
         chartInteg.setOption({
             backgroundColor: 'transparent',
-            tooltip: { trigger: 'axis' },
-            legend: { textStyle: { color: '#9ca3af' }, top: 8 },
-            grid: { left: 56, right: 20, top: 52, bottom: 48 },
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(10,10,20,0.9)',
+                borderColor: 'rgba(6,182,212,0.3)',
+                textStyle: { color: '#e2e8f0', fontSize: 12 },
+            },
+            legend: { textStyle: { color: '#9ca3af' }, top: 4 },
+            grid: { left: 60, right: 22, top: 52, bottom: 48 },
             xAxis: {
                 type: 'value',
                 name: 'Distancia radial (m)',
+                nameTextStyle: { color: '#94a3b8', fontSize: 11 },
                 axisLabel: { color: '#94a3b8' },
                 axisLine: { lineStyle: { color: '#334155' } },
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.06)' } },
             },
             yAxis: {
                 type: 'value',
-                name: 'Temperatura (C)',
+                name: 'Temperatura (°C)',
+                nameTextStyle: { color: '#94a3b8', fontSize: 11 },
                 axisLabel: { color: '#94a3b8' },
-                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.12)' } },
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.08)' } },
             },
             series: [{
                 name: 'Modelo térmico',
@@ -806,8 +823,8 @@
                 lineStyle: { width: 3, color: '#22d3ee' },
                 areaStyle: {
                     color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: 'rgba(34,211,238,0.28)' },
-                        { offset: 1, color: 'rgba(34,211,238,0.02)' },
+                        { offset: 0, color: 'rgba(34,211,238,0.25)' },
+                        { offset: 1, color: 'rgba(34,211,238,0.01)' },
                     ]),
                 },
                 showSymbol: false,
@@ -815,136 +832,194 @@
                 name: 'Sensores',
                 type: 'scatter',
                 data: res.interpolacion.puntos,
-                symbolSize: 12,
+                symbolSize: 13,
                 itemStyle: {
                     color: '#f59e0b',
                     borderColor: '#fff',
-                    borderWidth: 1,
+                    borderWidth: 1.5,
                 },
+                emphasis: { scale: 1.6 },
             }],
+            markLine: rSafe ? {
+                silent: true,
+                data: [{ xAxis: rSafe, lineStyle: { color: '#22c55e', type: 'dashed', width: 2 } }],
+            } : undefined,
         });
+
+        // ---- Potencia Térmica Integrada (barras coloreadas) ----
+        const integLabels = ['Trapecio', 'Simpson 1/3', 'Simpson 3/8', 'Rectángulo', 'Gauss', 'MC'];
+        const integValues = [
+            res.integracion.resultados.trapecio,
+            res.integracion.resultados.simpson13,
+            res.integracion.resultados.simpson38,
+            res.integracion.resultados.rectangulo,
+            res.integracion.resultados.gauss_legendre,
+            res.montecarlo.integral.estimacion,
+        ];
+        const barColors = ['#06b6d4', '#8b5cf6', '#a78bfa', '#22c55e', '#f59e0b', '#ec4899'];
 
         chartEdo.setOption({
             backgroundColor: 'transparent',
-            tooltip: { trigger: 'axis' },
-            grid: { left: 56, right: 20, top: 28, bottom: 52 },
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(10,10,20,0.9)',
+                borderColor: 'rgba(6,182,212,0.3)',
+                textStyle: { color: '#e2e8f0', fontSize: 12 },
+                formatter: (params) => {
+                    const p = params[0];
+                    return `<strong style="color:${barColors[p.dataIndex]}">${p.name}</strong><br/>Valor: ${p.value.toFixed(6)}`;
+                },
+            },
+            grid: { left: 60, right: 20, top: 28, bottom: 56 },
             xAxis: {
                 type: 'category',
-                data: ['Trapecio', 'Simpson 1/3', 'Simpson 3/8', 'Rectángulo', 'Gauss', 'MC'],
-                axisLabel: { color: '#94a3b8' },
+                data: integLabels,
+                axisLabel: { color: '#94a3b8', fontSize: 11, rotate: 15 },
                 axisLine: { lineStyle: { color: '#334155' } },
             },
             yAxis: {
                 type: 'value',
                 name: 'Potencia acumulada',
+                nameTextStyle: { color: '#94a3b8', fontSize: 11 },
                 axisLabel: { color: '#94a3b8' },
-                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.12)' } },
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.08)' } },
             },
             series: [{
                 type: 'bar',
-                data: [
-                    res.integracion.resultados.trapecio,
-                    res.integracion.resultados.simpson13,
-                    res.integracion.resultados.simpson38,
-                    res.integracion.resultados.rectangulo,
-                    res.integracion.resultados.gauss_legendre,
-                    res.montecarlo.integral.estimacion,
-                ],
-                barWidth: '52%',
-                itemStyle: {
-                    borderRadius: [8, 8, 0, 0],
-                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                        { offset: 0, color: '#22d3ee' },
-                        { offset: 1, color: '#7c3aed' },
-                    ]),
+                data: integValues.map((v, i) => ({
+                    value: v,
+                    itemStyle: {
+                        borderRadius: [8, 8, 0, 0],
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: barColors[i] },
+                            { offset: 1, color: barColors[i] + '55' },
+                        ]),
+                    },
+                })),
+                barWidth: '48%',
+                label: {
+                    show: true,
+                    position: 'top',
+                    color: '#cbd5e1',
+                    fontSize: 10,
+                    fontFamily: 'JetBrains Mono, monospace',
+                    formatter: (p) => p.value.toFixed(3),
                 },
             }],
         });
 
+        // ---- Calentamiento de Sartén (EDO) ----
         chartMc.setOption({
             backgroundColor: 'transparent',
-            tooltip: { trigger: 'axis' },
-            legend: { textStyle: { color: '#9ca3af' }, top: 8 },
-            grid: { left: 56, right: 20, top: 52, bottom: 42 },
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(10,10,20,0.9)',
+                borderColor: 'rgba(6,182,212,0.3)',
+                textStyle: { color: '#e2e8f0', fontSize: 12 },
+            },
+            legend: {
+                textStyle: { color: '#9ca3af' },
+                top: 4,
+                selectedMode: 'multiple',
+            },
+            grid: { left: 60, right: 22, top: 48, bottom: 42 },
             xAxis: {
                 type: 'category',
                 data: res.edo.trayectorias.t,
+                name: 'Tiempo (s)',
+                nameTextStyle: { color: '#94a3b8', fontSize: 11 },
                 axisLabel: { color: '#94a3b8' },
                 axisLine: { lineStyle: { color: '#334155' } },
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.06)' } },
             },
             yAxis: {
                 type: 'value',
-                name: 'Temperatura sartén (C)',
+                name: 'Temperatura sartén (°C)',
+                nameTextStyle: { color: '#94a3b8', fontSize: 11 },
                 axisLabel: { color: '#94a3b8' },
-                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.12)' } },
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.08)' } },
             },
             series: [
-                { name: 'Euler', type: 'line', smooth: true, data: res.edo.trayectorias.euler, lineStyle: { width: 2, color: '#06b6d4' } },
-                { name: 'Heun', type: 'line', smooth: true, data: res.edo.trayectorias.heun, lineStyle: { width: 2, color: '#8b5cf6' } },
-                { name: 'RK4', type: 'line', smooth: true, data: res.edo.trayectorias.rk4, lineStyle: { width: 2.5, color: '#22c55e' } },
-                { name: 'Exacta', type: 'line', smooth: true, data: res.edo.trayectorias.exacta, lineStyle: { width: 2, color: '#f59e0b', type: 'dashed' } },
+                { name: 'Euler', type: 'line', smooth: true, data: res.edo.trayectorias.euler, lineStyle: { width: 2.5, color: '#06b6d4' }, symbol: 'circle', symbolSize: 4 },
+                { name: 'Heun', type: 'line', smooth: true, data: res.edo.trayectorias.heun, lineStyle: { width: 2.5, color: '#8b5cf6' }, symbol: 'rect', symbolSize: 4 },
+                { name: 'RK4', type: 'line', smooth: true, data: res.edo.trayectorias.rk4, lineStyle: { width: 3, color: '#22c55e' }, symbol: 'triangle', symbolSize: 5 },
+                { name: 'Exacta', type: 'line', smooth: true, data: res.edo.trayectorias.exacta, lineStyle: { width: 2, color: '#f59e0b', type: 'dashed' }, symbol: 'none' },
             ],
         });
 
+        // ---- Mapa Térmico Animado ----
         const frames = res.visualizacion.heatmap_animado.frames || [];
+        const maxTemp = Math.max(...res.visualizacion.heatmap_estatico.map(p => p[2]));
         chartAnim.setOption({
             baseOption: {
                 backgroundColor: 'transparent',
                 timeline: {
                     axisType: 'category',
                     autoPlay: true,
-                    playInterval: 450,
-                    data: frames.map(f => `${f.t.toFixed(1)} s`),
-                    label: { color: '#94a3b8' },
+                    playInterval: 400,
+                    data: frames.map(f => `${f.t.toFixed(1)}s`),
+                    label: { color: '#94a3b8', fontSize: 11 },
                     lineStyle: { color: '#334155' },
                     controlStyle: { color: '#cbd5e1', borderColor: '#475569' },
-                    bottom: 8,
+                    checkpointStyle: {
+                        color: '#06b6d4',
+                        borderColor: '#0891b2',
+                        animation: true,
+                    },
+                    emphasis: { controlStyle: { color: '#22d3ee' } },
+                    bottom: 6,
                 },
                 tooltip: {
                     trigger: 'item',
-                    formatter: (p) => `x=${p.value[0].toFixed(3)} m<br/>y=${p.value[1].toFixed(3)} m<br/>T=${p.value[2].toFixed(1)} C`,
+                    backgroundColor: 'rgba(10,10,20,0.9)',
+                    borderColor: 'rgba(6,182,212,0.3)',
+                    textStyle: { color: '#e2e8f0', fontSize: 12 },
+                    formatter: (p) => `<strong style="color:#67e8f9">Celda</strong><br/>x = ${p.value[0].toFixed(3)} m<br/>y = ${p.value[1].toFixed(3)} m<br/>T = ${p.value[2].toFixed(1)} °C`,
                 },
                 visualMap: {
                     min: res.aplicacion.ambiente_c,
-                    max: Math.max(...res.visualizacion.heatmap_estatico.map(p => p[2])),
+                    max: maxTemp,
                     dimension: 2,
                     orient: 'vertical',
                     right: 8,
                     top: 'middle',
                     calculable: true,
                     textStyle: { color: '#cbd5e1' },
-                    inRange: { color: ['#1d4ed8', '#06b6d4', '#22c55e', '#f59e0b', '#ef4444'] },
+                    inRange: { color: ['#1e3a5f', '#0d9488', '#22c55e', '#f59e0b', '#ef4444', '#fbbf24'] },
                 },
-                grid: { left: 56, right: 24, top: 20, bottom: 72 },
+                grid: { left: 56, right: 24, top: 32, bottom: 72 },
                 xAxis: {
                     type: 'value',
                     name: 'x (m)',
+                    nameTextStyle: { color: '#94a3b8', fontSize: 11 },
                     min: -0.9,
                     max: 0.9,
                     axisLine: { lineStyle: { color: '#334155' } },
                     axisLabel: { color: '#94a3b8' },
+                    splitLine: { lineStyle: { color: 'rgba(148,163,184,0.06)' } },
                 },
                 yAxis: {
                     type: 'value',
                     name: 'y (m)',
+                    nameTextStyle: { color: '#94a3b8', fontSize: 11 },
                     min: -0.9,
                     max: 0.9,
                     axisLine: { lineStyle: { color: '#334155' } },
-                    splitLine: { lineStyle: { color: 'rgba(148,163,184,0.12)' } },
+                    splitLine: { lineStyle: { color: 'rgba(148,163,184,0.06)' } },
                     axisLabel: { color: '#94a3b8' },
                 },
             },
             options: frames.map(f => ({
                 title: {
-                    text: `Propagación térmica · t=${f.t.toFixed(1)} s`,
+                    text: `Propagación Térmica · t = ${f.t.toFixed(1)} s`,
                     left: 'center',
-                    top: 0,
-                    textStyle: { color: '#e2e8f0', fontSize: 13, fontWeight: 600 },
+                    top: 4,
+                    textStyle: { color: '#e2e8f0', fontSize: 13, fontWeight: 600, fontFamily: 'Inter, sans-serif' },
                 },
                 series: [{
                     type: 'heatmap',
                     data: f.data,
-                    blurSize: 16,
+                    blurSize: 18,
                     pointSize: 5,
                 }],
             })),
@@ -953,6 +1028,94 @@
         window.requestAnimationFrame(() => {
             Object.values(CASE_CHARTS).forEach(ch => ch && ch.resize());
         });
+    }
+
+    // --- Generador de conclusiones interpretativas ---
+    function buildCaseConclusions(res) {
+        const el = $('#caso-conclusiones');
+        if (!el) return;
+
+        const safe   = res.aplicacion.distancia_segura_m;
+        const safeT  = res.aplicacion.temperatura_segura_c;
+        const nwIter = res.raices.newton_raphson.iteraciones;
+        const biIter = res.raices.biseccion.iteraciones;
+        const aiIter = res.raices.aitken.iteraciones;
+
+        const s13  = res.integracion.resultados.simpson13;
+        const trap = res.integracion.resultados.trapecio;
+        const mcI  = res.montecarlo.integral.estimacion;
+        const mcLo = res.montecarlo.integral.ic_bajo;
+        const mcHi = res.montecarlo.integral.ic_alto;
+
+        const rk4F = res.edo.metodos.rk4.y_final;
+        const euF  = res.edo.metodos.euler?.y_final ?? rk4F;
+        const rk4E = res.edo.metodos.rk4.error_final;
+
+        const piEst = res.montecarlo.pi.estimacion;
+        const piErr = Math.abs(piEst - Math.PI);
+
+        const intDiff = Math.abs(s13 - mcI);
+        const intPct  = s13 !== 0 ? ((intDiff / Math.abs(s13)) * 100).toFixed(2) : '—';
+
+        const items = [
+            {
+                icon: '🎯',
+                title: 'Zona de seguridad',
+                text: `A partir de los <strong>${nwIter}</strong> iteraciones de Newton-Raphson se determinó que la distancia segura es de <strong>${safe.toFixed(3)} m</strong> (donde T ≤ ${safeT.toFixed(0)} °C). Bisección llegó al mismo resultado en <strong>${biIter}</strong> iteraciones y Aitken en <strong>${aiIter}</strong>. Esto muestra cómo Newton converge mucho más rápido gracias a su orden cuadrático, mientras que Bisección es más lento pero garantiza convergencia.`,
+            },
+            {
+                icon: '📏',
+                title: 'Interpolación y gradiente',
+                text: `Con apenas unos pocos sensores simulados se logró reconstruir el perfil térmico continuo mediante Lagrange. El gradiente calculado por diferencia central en r = 0.30 m fue de <strong>${res.interpolacion.derivada_t3.toFixed(3)} °C/m</strong>, lo que indica la tasa de caída de temperatura a esa distancia. Cuanto más negativo, más rápido se enfría el entorno al alejarse de la hornalla.`,
+            },
+            {
+                icon: '⚡',
+                title: 'Potencia térmica integrada',
+                text: `Los 5 métodos determinísticos arrojaron resultados muy similares (Simpson 1/3 = <strong>${s13.toFixed(4)}</strong>, Trapecio = <strong>${trap.toFixed(4)}</strong>), lo que valida la consistencia numérica. Las pequeñas diferencias se deben al orden de precisión de cada método: Simpson es O(h⁴) mientras que Trapecio es solo O(h²).`,
+            },
+            {
+                icon: '🎲',
+                title: 'Monte Carlo vs. determinístico',
+                text: `La estimación Monte Carlo fue <strong>${mcI.toFixed(4)}</strong> con un intervalo de confianza al 95% de [${mcLo.toFixed(3)}, ${mcHi.toFixed(3)}]. La diferencia contra Simpson 1/3 fue de apenas un <strong>${intPct}%</strong>. Esto demuestra que Monte Carlo, aunque estocástico, converge al mismo valor — su potencia real aparece en dimensiones altas donde los métodos clásicos dejan de ser viables.`,
+            },
+            {
+                icon: '🔥',
+                title: 'Calentamiento de sartén (EDO)',
+                text: `RK4 predijo una temperatura final de <strong>${rk4F.toFixed(2)} °C</strong> con un error de apenas <strong>${rk4E.toExponential(2)}</strong> respecto a la solución exacta. Euler, en cambio, llegó a <strong>${euF.toFixed(2)} °C</strong> — se nota cómo un método de orden 1 acumula más error paso a paso. Heun queda en el medio, demostrando que promediar predictor y corrector ya mejora mucho la precisión.`,
+            },
+            {
+                icon: '🥧',
+                title: 'Estimación de π',
+                text: `Como test adicional, Monte Carlo estimó π ≈ <strong>${piEst.toFixed(6)}</strong>, con un error absoluto de <strong>${piErr.toFixed(5)}</strong>. Es un ejercicio clásico que demuestra cómo la aleatoriedad, con suficientes muestras, puede aproximar constantes matemáticas con sorprendente precisión.`,
+            },
+        ];
+
+        let html = items.map(it => `
+            <div class="conclusion-item">
+                <span class="conclusion-icon">${it.icon}</span>
+                <div class="conclusion-body">
+                    <p class="conclusion-title">${it.title}</p>
+                    <p class="conclusion-text">${it.text}</p>
+                </div>
+            </div>
+        `).join('');
+
+        // Veredicto final
+        html += `
+            <div class="conclusion-veredicto">
+                <span class="veredicto-label">VEREDICTO FINAL</span>
+                <p class="veredicto-text">
+                    El escenario integrado demuestra que <strong>no existe un único "mejor método"</strong>:
+                    Newton-Raphson es imbatible en velocidad para raíces, Simpson domina en integración determinística,
+                    Monte Carlo aporta incertidumbre probabilística indispensable en sistemas reales,
+                    y RK4 es el estándar de oro para EDOs cuando se busca precisión sin costo excesivo.
+                    La clave está en <strong>elegir la herramienta correcta para cada sub-problema</strong>
+                    y saber interpretar los resultados en contexto.
+                </p>
+            </div>
+        `;
+
+        el.innerHTML = html;
     }
 
     window.addEventListener('resize', () => {
@@ -1004,6 +1167,7 @@
             $('#caso-resumen').innerHTML = renderTable(resumenRows, ['bloque', 'valor', 'detalle']);
 
             renderCaseCharts(res);
+            buildCaseConclusions(res);
 
             toast('Caso práctico ejecutado ✓', 'success');
         } catch (err) {
