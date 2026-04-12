@@ -45,6 +45,9 @@ const API = (() => {
         heun:           (d) => fetchJSON('/api/edo/heun', d),
         rk4:            (d) => fetchJSON('/api/edo/rk4', d),
 
+        // Caso práctico integrado
+        casoPracticoIntegrado: (d = {}) => fetchJSON('/api/casos/practico-integrado', d),
+
         // Sistemas lineales
         gauss:          (d) => fetchJSON('/api/sistemas/gauss', d),
 

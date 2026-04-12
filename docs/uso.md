@@ -42,5 +42,18 @@ python app.py
 ## Uso desde Streamlit
 
 ```bash
-streamlit run web_app.py
+streamlit run simuladores/streamlit_app.py
 ```
+
+## Uso del Caso Práctico Integrado (Web)
+
+1. Levantar la web con Flask.
+2. Ir a la sección "Caso Práctico Integrado" en el menú lateral.
+3. Ejecutar el botón "Ejecutar Caso Práctico Integrado".
+
+La corrida devuelve un tablero con:
+
+- convergencia de métodos de raíces
+- comparación de métodos de integración
+- estimaciones Monte Carlo (integral y pi)
+- trayectoria EDO para Euler, Heun y RK4

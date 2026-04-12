@@ -75,6 +75,16 @@ python web_app.py
 
 Abrí el navegador en: **http://127.0.0.1:5000**
 
+Dentro de la web, ahora tenés la opción **"Caso Práctico Integrado"**:
+
+- ejecuta un escenario aplicado de control térmico
+- incluye dashboard rediseñado con **Apache ECharts** y KPIs de rendimiento
+- permite perfiles de ejecución (Base / Pro / Extremo) para simulaciones más exigentes
+- compara métodos de raíces (Bisección, Punto Fijo, Newton, Aitken)
+- usa interpolación y derivación numérica sobre datos simulados
+- contrasta integración determinística vs Monte Carlo
+- resuelve la dinámica con Euler, Heun y RK4
+
 Para **detener** el servidor: presioná `Ctrl + C` en la terminal.
 
 ### Consola (modo texto)

@@ -15,6 +15,11 @@
 
     const $ = (sel, ctx = document) => ctx.querySelector(sel);
     const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
+    const on = (sel, event, handler, ctx = document) => {
+        const el = $(sel, ctx);
+        if (el) el.addEventListener(event, handler);
+        return el;
+    };
 
     /** Plotly dark layout – premium version */
     const PLOTLY_LAYOUT = {
@@ -143,6 +148,7 @@
         integracion:   { title: 'Integración Numérica' },
         montecarlo:    { title: 'Simulación Monte Carlo' },
         edo:           { title: 'Ecuaciones Diferenciales' },
+        'caso-practico': { title: 'Caso Práctico Integrado' },
     };
 
     function switchSection(key) {
@@ -157,22 +163,27 @@
         btn.addEventListener('click', () => switchSection(btn.dataset.section));
     });
 
-    $('#menu-toggle').addEventListener('click', () => {
+    on('#menu-toggle', 'click', () => {
         $('#sidebar').classList.toggle('open');
     });
 
     // ==================== RAÍCES ====================
 
     const raicesMetodo = $('#raices-metodo');
-    raicesMetodo.addEventListener('change', () => {
-        const m = raicesMetodo.value;
-        $$('.method-fields', $('#sec-raices')).forEach(f => f.style.display = 'none');
-        const target = $(`#raices-fields-${m}`);
-        if (target) target.style.display = '';
-    });
+    if (raicesMetodo) {
+        raicesMetodo.addEventListener('change', () => {
+            const m = raicesMetodo.value;
+            const secRaices = $('#sec-raices');
+            if (!secRaices) return;
+            $$('.method-fields', secRaices).forEach(f => f.style.display = 'none');
+            const target = $(`#raices-fields-${m}`);
+            if (target) target.style.display = '';
+        });
+    }
 
-    $('#btn-raices').addEventListener('click', async () => {
+    on('#btn-raices', 'click', async () => {
         const btn = $('#btn-raices');
+        if (!btn || !raicesMetodo) return;
         const metodo = raicesMetodo.value;
         let payload;
 
@@ -263,6 +274,7 @@
     const defaultPoints = [[1, 1], [2, 4], [3, 9]];
 
     function addPointRow(x = '', y = '') {
+        if (!pointsList) return;
         const idx = pointsList.children.length + 1;
         const row = document.createElement('div');
         row.className = 'point-row';
@@ -286,12 +298,14 @@
     }
 
     function renumberPoints() {
+        if (!pointsList) return;
         Array.from(pointsList.children).forEach((row, i) => {
             row.querySelector('.point-label').textContent = `P${i + 1}`;
         });
     }
 
     function getPointsFromEditor() {
+        if (!pointsList) return [];
         return Array.from(pointsList.querySelectorAll('.point-row')).map(row => {
             const x = parseFloat(row.querySelector('.interp-x').value);
             const y = parseFloat(row.querySelector('.interp-y').value);
@@ -300,12 +314,15 @@
     }
 
     // Init default points
-    defaultPoints.forEach(([x, y]) => addPointRow(x, y));
+    if (pointsList) {
+        defaultPoints.forEach(([x, y]) => addPointRow(x, y));
+    }
 
-    $('#interp-add-point').addEventListener('click', () => addPointRow());
+    on('#interp-add-point', 'click', () => addPointRow());
 
-    $('#btn-interp').addEventListener('click', async () => {
+    on('#btn-interp', 'click', async () => {
         const btn = $('#btn-interp');
+        if (!btn) return;
         try {
             const puntos = getPointsFromEditor();
             if (puntos.length < 2) {
@@ -373,8 +390,9 @@
         }
     });
 
-    $('#btn-deriv').addEventListener('click', async () => {
+    on('#btn-deriv', 'click', async () => {
         const btn = $('#btn-deriv');
+        if (!btn) return;
         try {
             setLoading(btn, true);
             const res = await API.derivadaCentral({
@@ -396,8 +414,9 @@
 
     // ==================== INTEGRACIÓN ====================
 
-    $('#btn-integ').addEventListener('click', async () => {
+    on('#btn-integ', 'click', async () => {
         const btn = $('#btn-integ');
+        if (!btn) return;
         const metodo = $('#integ-metodo').value;
 
         try {
@@ -470,12 +489,16 @@
     // ==================== MONTE CARLO ====================
 
     const mcModo = $('#mc-modo');
-    mcModo.addEventListener('change', () => {
-        $('#mc-fields-integral').style.display = mcModo.value === 'integral' ? '' : 'none';
-    });
+    if (mcModo) {
+        mcModo.addEventListener('change', () => {
+            const mcFields = $('#mc-fields-integral');
+            if (mcFields) mcFields.style.display = mcModo.value === 'integral' ? '' : 'none';
+        });
+    }
 
-    $('#btn-mc').addEventListener('click', async () => {
+    on('#btn-mc', 'click', async () => {
         const btn = $('#btn-mc');
+        if (!btn || !mcModo) return;
         const modo = mcModo.value;
 
         try {
@@ -550,8 +573,9 @@
 
     // ==================== EDO ====================
 
-    $('#btn-edo').addEventListener('click', async () => {
+    on('#btn-edo', 'click', async () => {
         const btn = $('#btn-edo');
+        if (!btn) return;
         const metodo = $('#edo-metodo').value;
 
         try {
@@ -633,6 +657,360 @@
             const area = $('#edo-resultado');
             area.style.display = '';
             showMessage($('#edo-msg'), err.message, false);
+        } finally {
+            setLoading(btn, false);
+            $('#status-text').textContent = 'Listo';
+        }
+    });
+
+    // ==================== CASO PRÁCTICO INTEGRADO ====================
+
+    const CASE_CHARTS = {};
+
+    function initCaseChart(id) {
+        const el = document.getElementById(id);
+        if (!el || typeof echarts === 'undefined') return null;
+        if (CASE_CHARTS[id]) {
+            CASE_CHARTS[id].dispose();
+        }
+        CASE_CHARTS[id] = echarts.init(el, null, { renderer: 'canvas' });
+        return CASE_CHARTS[id];
+    }
+
+    function buildCaseKpis(res) {
+        const kpis = [
+            {
+                title: 'Latencia total',
+                value: `${res.caso.runtime_ms.toFixed(1)} ms`,
+                note: 'corrida integrada',
+            },
+            {
+                title: 'Zona segura',
+                value: `${res.aplicacion.distancia_segura_m.toFixed(3)} m`,
+                note: `T <= ${res.aplicacion.temperatura_segura_c.toFixed(0)} C`,
+            },
+            {
+                title: 'Potencia MC',
+                value: res.montecarlo.integral.estimacion.toFixed(2),
+                note: `n=${res.montecarlo.integral.n}`,
+            },
+            {
+                title: 'Sartén final',
+                value: res.edo.metodos.rk4.y_final.toFixed(3),
+                note: 'EDO RK4',
+            },
+        ];
+        $('#caso-kpis').innerHTML = kpis.map(k => `
+            <div class="kpi-card">
+                <p class="kpi-title">${k.title}</p>
+                <p class="kpi-value">${k.value}</p>
+                <p class="kpi-note">${k.note}</p>
+            </div>
+        `).join('');
+    }
+
+    function renderCaseCharts(res) {
+        const chartRaices = initCaseChart('caso-chart-raices');
+        const chartInteg = initCaseChart('caso-chart-integracion');
+        const chartEdo = initCaseChart('caso-chart-edo');
+        const chartMc = initCaseChart('caso-chart-mc');
+        const chartAnim = initCaseChart('caso-chart-anim');
+
+        if (!chartRaices || !chartInteg || !chartEdo || !chartMc || !chartAnim) {
+            throw new Error('No se pudieron inicializar los charts ECharts.');
+        }
+
+        chartRaices.setOption({
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'item',
+                formatter: (p) => `x=${p.value[0].toFixed(3)} m<br/>y=${p.value[1].toFixed(3)} m<br/>T=${p.value[2].toFixed(1)} C`,
+            },
+            grid: { left: 56, right: 24, top: 28, bottom: 42 },
+            xAxis: {
+                type: 'value',
+                name: 'x (m)',
+                min: -0.9,
+                max: 0.9,
+                axisLine: { lineStyle: { color: '#334155' } },
+                axisLabel: { color: '#94a3b8' },
+            },
+            yAxis: {
+                type: 'value',
+                name: 'y (m)',
+                min: -0.9,
+                max: 0.9,
+                axisLine: { lineStyle: { color: '#334155' } },
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.12)' } },
+                axisLabel: { color: '#94a3b8' },
+            },
+            visualMap: {
+                min: res.aplicacion.ambiente_c,
+                max: Math.max(...res.visualizacion.nube_puntos.map(p => p[2])),
+                dimension: 2,
+                calculable: true,
+                orient: 'vertical',
+                right: 8,
+                top: 'middle',
+                textStyle: { color: '#cbd5e1' },
+                inRange: { color: ['#1d4ed8', '#06b6d4', '#22c55e', '#f59e0b', '#ef4444'] },
+            },
+            series: [{
+                name: 'Mapa térmico',
+                type: 'heatmap',
+                data: res.visualizacion.heatmap_estatico,
+                blurSize: 16,
+                pointSize: 5,
+                itemStyle: { opacity: 0.52 },
+                z: 1,
+            }, {
+                name: 'Temperatura',
+                type: 'scatter',
+                data: res.visualizacion.nube_puntos,
+                symbolSize: 7,
+                itemStyle: { opacity: 0.82 },
+                emphasis: { scale: 1.6 },
+                z: 2,
+            }, {
+                name: 'Centro hornalla',
+                type: 'scatter',
+                data: [[0, 0, 0]],
+                symbolSize: 14,
+                itemStyle: { color: '#f8fafc', borderColor: '#0f172a', borderWidth: 2 },
+                z: 3,
+            }],
+        });
+
+        chartInteg.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis' },
+            legend: { textStyle: { color: '#9ca3af' }, top: 8 },
+            grid: { left: 56, right: 20, top: 52, bottom: 48 },
+            xAxis: {
+                type: 'value',
+                name: 'Distancia radial (m)',
+                axisLabel: { color: '#94a3b8' },
+                axisLine: { lineStyle: { color: '#334155' } },
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Temperatura (C)',
+                axisLabel: { color: '#94a3b8' },
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.12)' } },
+            },
+            series: [{
+                name: 'Modelo térmico',
+                type: 'line',
+                smooth: true,
+                data: res.visualizacion.curva_radial.r.map((r, i) => [r, res.visualizacion.curva_radial.temp[i]]),
+                lineStyle: { width: 3, color: '#22d3ee' },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(34,211,238,0.28)' },
+                        { offset: 1, color: 'rgba(34,211,238,0.02)' },
+                    ]),
+                },
+                showSymbol: false,
+            }, {
+                name: 'Sensores',
+                type: 'scatter',
+                data: res.interpolacion.puntos,
+                symbolSize: 12,
+                itemStyle: {
+                    color: '#f59e0b',
+                    borderColor: '#fff',
+                    borderWidth: 1,
+                },
+            }],
+        });
+
+        chartEdo.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis' },
+            grid: { left: 56, right: 20, top: 28, bottom: 52 },
+            xAxis: {
+                type: 'category',
+                data: ['Trapecio', 'Simpson 1/3', 'Simpson 3/8', 'Rectángulo', 'Gauss', 'MC'],
+                axisLabel: { color: '#94a3b8' },
+                axisLine: { lineStyle: { color: '#334155' } },
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Potencia acumulada',
+                axisLabel: { color: '#94a3b8' },
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.12)' } },
+            },
+            series: [{
+                type: 'bar',
+                data: [
+                    res.integracion.resultados.trapecio,
+                    res.integracion.resultados.simpson13,
+                    res.integracion.resultados.simpson38,
+                    res.integracion.resultados.rectangulo,
+                    res.integracion.resultados.gauss_legendre,
+                    res.montecarlo.integral.estimacion,
+                ],
+                barWidth: '52%',
+                itemStyle: {
+                    borderRadius: [8, 8, 0, 0],
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: '#22d3ee' },
+                        { offset: 1, color: '#7c3aed' },
+                    ]),
+                },
+            }],
+        });
+
+        chartMc.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis' },
+            legend: { textStyle: { color: '#9ca3af' }, top: 8 },
+            grid: { left: 56, right: 20, top: 52, bottom: 42 },
+            xAxis: {
+                type: 'category',
+                data: res.edo.trayectorias.t,
+                axisLabel: { color: '#94a3b8' },
+                axisLine: { lineStyle: { color: '#334155' } },
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Temperatura sartén (C)',
+                axisLabel: { color: '#94a3b8' },
+                splitLine: { lineStyle: { color: 'rgba(148,163,184,0.12)' } },
+            },
+            series: [
+                { name: 'Euler', type: 'line', smooth: true, data: res.edo.trayectorias.euler, lineStyle: { width: 2, color: '#06b6d4' } },
+                { name: 'Heun', type: 'line', smooth: true, data: res.edo.trayectorias.heun, lineStyle: { width: 2, color: '#8b5cf6' } },
+                { name: 'RK4', type: 'line', smooth: true, data: res.edo.trayectorias.rk4, lineStyle: { width: 2.5, color: '#22c55e' } },
+                { name: 'Exacta', type: 'line', smooth: true, data: res.edo.trayectorias.exacta, lineStyle: { width: 2, color: '#f59e0b', type: 'dashed' } },
+            ],
+        });
+
+        const frames = res.visualizacion.heatmap_animado.frames || [];
+        chartAnim.setOption({
+            baseOption: {
+                backgroundColor: 'transparent',
+                timeline: {
+                    axisType: 'category',
+                    autoPlay: true,
+                    playInterval: 450,
+                    data: frames.map(f => `${f.t.toFixed(1)} s`),
+                    label: { color: '#94a3b8' },
+                    lineStyle: { color: '#334155' },
+                    controlStyle: { color: '#cbd5e1', borderColor: '#475569' },
+                    bottom: 8,
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: (p) => `x=${p.value[0].toFixed(3)} m<br/>y=${p.value[1].toFixed(3)} m<br/>T=${p.value[2].toFixed(1)} C`,
+                },
+                visualMap: {
+                    min: res.aplicacion.ambiente_c,
+                    max: Math.max(...res.visualizacion.heatmap_estatico.map(p => p[2])),
+                    dimension: 2,
+                    orient: 'vertical',
+                    right: 8,
+                    top: 'middle',
+                    calculable: true,
+                    textStyle: { color: '#cbd5e1' },
+                    inRange: { color: ['#1d4ed8', '#06b6d4', '#22c55e', '#f59e0b', '#ef4444'] },
+                },
+                grid: { left: 56, right: 24, top: 20, bottom: 72 },
+                xAxis: {
+                    type: 'value',
+                    name: 'x (m)',
+                    min: -0.9,
+                    max: 0.9,
+                    axisLine: { lineStyle: { color: '#334155' } },
+                    axisLabel: { color: '#94a3b8' },
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'y (m)',
+                    min: -0.9,
+                    max: 0.9,
+                    axisLine: { lineStyle: { color: '#334155' } },
+                    splitLine: { lineStyle: { color: 'rgba(148,163,184,0.12)' } },
+                    axisLabel: { color: '#94a3b8' },
+                },
+            },
+            options: frames.map(f => ({
+                title: {
+                    text: `Propagación térmica · t=${f.t.toFixed(1)} s`,
+                    left: 'center',
+                    top: 0,
+                    textStyle: { color: '#e2e8f0', fontSize: 13, fontWeight: 600 },
+                },
+                series: [{
+                    type: 'heatmap',
+                    data: f.data,
+                    blurSize: 16,
+                    pointSize: 5,
+                }],
+            })),
+        });
+
+        window.requestAnimationFrame(() => {
+            Object.values(CASE_CHARTS).forEach(ch => ch && ch.resize());
+        });
+    }
+
+    window.addEventListener('resize', () => {
+        Object.values(CASE_CHARTS).forEach(ch => ch && ch.resize());
+    });
+
+    on('#btn-caso-practico', 'click', async () => {
+        const btn = $('#btn-caso-practico');
+        if (!btn) return;
+        try {
+            setLoading(btn, true);
+            $('#status-text').textContent = 'Ejecutando escenario…';
+
+            const intensidad = $('#caso-intensidad').value;
+            const seed = $('#caso-seed').value.trim() || '42';
+            const profile = {
+                base: { mc_n: 6000, pi_n: 8000, cloud_n: 900, pasos: 12, h: 0.5 },
+                pro: { mc_n: 20000, pi_n: 25000, cloud_n: 1800, pasos: 20, h: 0.3 },
+                extremo: { mc_n: 50000, pi_n: 60000, cloud_n: 3000, pasos: 30, h: 0.2 },
+            }[intensidad];
+
+            const res = await API.casoPracticoIntegrado({
+                ...profile,
+                seed,
+            });
+            const area = $('#caso-resultado');
+            area.style.display = '';
+
+            showMessage(
+                $('#caso-msg'),
+                res.mensaje,
+                true,
+                `${res.caso.titulo} · ${res.caso.descripcion}`
+            );
+
+            buildCaseKpis(res);
+
+            const resumenRows = [
+                { bloque: 'Raíces · Distancia segura (Newton)', valor: res.raices.newton_raphson.aproximacion, detalle: `iter=${res.raices.newton_raphson.iteraciones}` },
+                { bloque: 'Raíces · Bisección', valor: res.raices.biseccion.aproximacion, detalle: `iter=${res.raices.biseccion.iteraciones}` },
+                { bloque: 'Raíces · Aitken', valor: res.raices.aitken.aproximacion, detalle: `iter=${res.raices.aitken.iteraciones}` },
+                { bloque: 'Interpolación · T(r=0.38m)', valor: res.interpolacion.valor_interpolado, detalle: 'lectura intermedia' },
+                { bloque: 'Gradiente radial · dT/dr (r=0.30m)', valor: res.interpolacion.derivada_t3, detalle: 'diferencia central' },
+                { bloque: 'Integración · Simpson 1/3', valor: res.integracion.resultados.simpson13, detalle: '[0, 0.8] m' },
+                { bloque: 'Monte Carlo · Integral', valor: res.montecarlo.integral.estimacion, detalle: `IC95% [${res.montecarlo.integral.ic_bajo.toFixed(3)}, ${res.montecarlo.integral.ic_alto.toFixed(3)}]` },
+                { bloque: 'Monte Carlo · Pi', valor: res.montecarlo.pi.estimacion, detalle: `IC95% [${res.montecarlo.pi.ic_bajo.toFixed(3)}, ${res.montecarlo.pi.ic_alto.toFixed(3)}]` },
+                { bloque: 'EDO · Sartén final RK4', valor: res.edo.metodos.rk4.y_final, detalle: `error=${res.edo.metodos.rk4.error_final.toExponential(3)}` },
+            ];
+            $('#caso-resumen').innerHTML = renderTable(resumenRows, ['bloque', 'valor', 'detalle']);
+
+            renderCaseCharts(res);
+
+            toast('Caso práctico ejecutado ✓', 'success');
+        } catch (err) {
+            toast(err.message, 'error');
+            const area = $('#caso-resultado');
+            area.style.display = '';
+            showMessage($('#caso-msg'), err.message, false);
         } finally {
             setLoading(btn, false);
             $('#status-text').textContent = 'Listo';

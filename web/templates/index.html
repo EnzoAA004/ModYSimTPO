@@ -18,6 +18,8 @@
 
     <!-- Plotly.js para gráficos -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+    <!-- Apache ECharts para dashboards avanzados -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
 
     <!-- Estilos propios -->
     <link rel="stylesheet" href="/static/css/style.css">
@@ -48,6 +50,9 @@
             </button></li>
             <li><button class="nav-btn" data-section="edo" id="nav-edo">
                 <span class="nav-icon">δ</span><span class="nav-label">EDO</span>
+            </button></li>
+            <li><button class="nav-btn" data-section="caso-practico" id="nav-caso-practico">
+                <span class="nav-icon">⚙</span><span class="nav-label">Caso Práctico Integrado</span>
             </button></li>
 
         </ul>
@@ -406,6 +411,87 @@
                         <div id="edo-msg" class="result-message"></div>
                         <div id="edo-tabla" class="table-wrapper"></div>
                         <div id="edo-chart" class="chart-container"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN: CASO PRÁCTICO INTEGRADO -->
+        <section id="sec-caso-practico" class="section">
+            <div class="caso-hero">
+                <div>
+                    <p class="caso-hero-kicker">DASHBOARD APLICADO</p>
+                    <h3>Caso Integrado: Flujo de calor de una hornalla</h3>
+                    <p>
+                        Visualiza cómo se distribuye la temperatura alrededor de la hornalla,
+                        estimá zona segura de contacto y compará potencia térmica con distintos métodos numéricos.
+                    </p>
+                </div>
+                <div class="caso-controls">
+                    <div class="field-group">
+                        <label for="caso-intensidad">Intensidad</label>
+                        <select id="caso-intensidad" class="select-premium">
+                            <option value="base">Base</option>
+                            <option value="pro" selected>Pro</option>
+                            <option value="extremo">Extremo</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label for="caso-seed">Seed</label>
+                        <input type="text" id="caso-seed" class="input-math" data-keyboard="true" value="42">
+                    </div>
+                    <button id="btn-caso-practico" class="btn-execute">
+                        <span class="btn-icon">▶</span> Ejecutar Dashboard Integrado
+                    </button>
+                </div>
+            </div>
+
+            <div id="caso-resultado" class="result-area" style="display:none;">
+                <div class="card">
+                    <div class="card-header"><h3>Estado de Corrida</h3></div>
+                    <div class="card-body">
+                        <div id="caso-msg" class="result-message"></div>
+                        <div id="caso-kpis" class="caso-kpis"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3>Resumen Numérico</h3></div>
+                    <div class="card-body">
+                        <div id="caso-resumen" class="table-wrapper"></div>
+                    </div>
+                </div>
+
+                <div class="caso-chart-grid">
+                    <div class="card">
+                        <div class="card-header"><h3>Nube de Puntos Térmica (x, y, T)</h3></div>
+                        <div class="card-body">
+                            <div id="caso-chart-raices" class="chart-container"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>Perfil Radial + Sensores</h3></div>
+                        <div class="card-body">
+                            <div id="caso-chart-integracion" class="chart-container"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>Potencia Térmica Integrada (métodos)</h3></div>
+                        <div class="card-body">
+                            <div id="caso-chart-edo" class="chart-container"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>Calentamiento de Sartén (EDO)</h3></div>
+                        <div class="card-body">
+                            <div id="caso-chart-mc" class="chart-container"></div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>Mapa Térmico Continuo (Animado)</h3></div>
+                        <div class="card-body">
+                            <div id="caso-chart-anim" class="chart-container"></div>
+                        </div>
                     </div>
                 </div>
             </div>
