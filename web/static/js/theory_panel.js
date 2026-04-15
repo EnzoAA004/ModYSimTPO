@@ -164,21 +164,17 @@ const TheoryPanel = (() => {
         `,
 
         'caso-practico': `
-            <h4>🔥 Caso Práctico: Transferencia de Calor</h4>
-            <p>Se modela el flujo de calor de una hornalla sobre una superficie,
-            conectando cada familia de métodos numéricos con un problema real de ingeniería térmica.</p>
+            <h4>🔥 Caso práctico: calor de una hornalla (explicado fácil)</h4>
+            <p>Este panel muestra algo cotidiano: cómo se reparte el calor alrededor de una hornalla.</p>
+            <p>Podés cambiar valores como tamaño de hornalla, potencia o temperatura ambiente y ver al instante qué pasa.</p>
 
             <div class="theory-step">
                 <span class="step-badge">1</span>
                 <div>
-                    <h4>Distancia segura — Raíces</h4>
-                    <p>Se busca <em>r*</em> tal que la temperatura radial caiga al umbral seguro T<sub>s</sub> :</p>
+                    <h4>Distancia segura</h4>
+                    <p>El sistema busca a qué distancia la temperatura baja por debajo del valor que marcás como seguro.</p>
                     <div class="formula-block">
-                        $$T(r) - T_s = 0$$
-                    </div>
-                    <p>Modelo de decaimiento radial empleado:</p>
-                    <div class="formula-block">
-                        $$T(r) = T_{\\text{amb}} + \\frac{Q}{2\\pi k}\\, e^{-\\alpha\\, r^2}$$
+                        $$T(r) - T_{segura} = 0$$
                     </div>
                 </div>
             </div>
@@ -186,62 +182,38 @@ const TheoryPanel = (() => {
             <div class="theory-step">
                 <span class="step-badge">2</span>
                 <div>
-                    <h4>Sensores + Interpolación</h4>
-                    <p>Con mediciones discretas (sensores) se estima temperatura en puntos intermedios
-                    y el <strong>gradiente térmico</strong> por diferencia central:</p>
-                    <div class="formula-block">
-                        $$\\frac{dT}{dr}(r) \\approx \\frac{T(r+h) - T(r-h)}{2h}$$
-                    </div>
+                    <h4>Curva de temperatura</h4>
+                    <p>Con algunos sensores simulados se dibuja una curva continua para entender cómo cae la temperatura al alejarse.</p>
                 </div>
             </div>
 
             <div class="theory-step">
                 <span class="step-badge">3</span>
                 <div>
-                    <h4>Potencia total — Integración</h4>
-                    <p>La potencia térmica acumulada sobre un disco de radio R se obtiene integrando:</p>
-                    <div class="formula-block">
-                        $$P = \\int_0^R 2\\pi\\, r\\, q(r)\\, dr$$
-                    </div>
-                    <p>Se comparan Trapecio, Simpson 1/3, 3/8, Rectángulo y Gauss-Legendre.</p>
+                    <h4>Calor total en la zona</h4>
+                    <p>Se calcula cuánto calor total hay dentro de un radio dado. Se comparan métodos para ver que dan resultados parecidos.</p>
                 </div>
             </div>
 
             <div class="theory-step">
                 <span class="step-badge">4</span>
                 <div>
-                    <h4>Incertidumbre — Monte Carlo</h4>
-                    <p>Se estima la misma integral por muestreo aleatorio y se construye un
-                    <strong>intervalo de confianza</strong> al 95%:</p>
-                    <div class="formula-block">
-                        $$\\hat{P} = \\frac{R}{N}\\sum_{i=1}^{N} 2\\pi\\, r_i\\, q(r_i),\\; r_i \\sim U(0,R)$$
-                    </div>
+                    <h4>Temperatura en el tiempo</h4>
+                    <p>También se simula cómo se calienta una sartén con el paso del tiempo, desde temperatura inicial hasta acercarse a la fuente.</p>
                 </div>
             </div>
 
             <div class="theory-step">
                 <span class="step-badge">5</span>
                 <div>
-                    <h4>Evolución temporal — EDO</h4>
-                    <p>La temperatura de una sartén sobre la hornalla sigue la ley de enfriamiento/calentamiento de Newton:</p>
-                    <div class="formula-block">
-                        $$\\frac{dT}{dt} = k\\,(T_{\\text{fuente}} - T) $$
-                    </div>
-                    <p>Se comparan Euler, Heun y RK4 contra la solución exacta.</p>
-                </div>
-            </div>
-
-            <div class="theory-step">
-                <span class="step-badge">6</span>
-                <div>
-                    <h4>Mapa térmico animado</h4>
-                    <p>Visualización 2D de la propagación de calor en el plano (x, y) durante el encendido.</p>
+                    <h4>Mapa de calor animado</h4>
+                    <p>El mapa animado te deja ver de forma visual cómo el calor se expande desde el centro de la hornalla.</p>
                 </div>
             </div>
 
             <div class="theory-note">
-                <strong>Objetivo:</strong> Conectar visualmente un problema real de transferencia de calor
-                con cada familia de métodos numéricos del curso.
+                <strong>Idea clave:</strong> si subís la potencia o el radio de la hornalla, el calor llega más lejos.
+                Si subís la temperatura segura, la zona segura queda más cerca del centro.
             </div>
         `,
     };

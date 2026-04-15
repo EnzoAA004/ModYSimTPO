@@ -362,45 +362,71 @@ def api_caso_practico_integrado():
         pasos = int(_parse_num(d.get("pasos", 12)))
         h = _parse_num(d.get("h", 0.5))
         cloud_n = int(_parse_num(d.get("cloud_n", 1200)))
+        ambiente = _parse_num(d.get("ambiente_c", 24.0))
+        temp_segura = _parse_num(d.get("temperatura_segura_c", 60.0))
+        radio_hornalla = _parse_num(d.get("radio_hornalla_m", 0.14))
+        radio_disco = _parse_num(d.get("radio_disco_m", 0.8))
+        potencia_hornalla = _parse_num(d.get("potencia_hornalla", 320.0))
+        rapidez_disipacion = _parse_num(d.get("rapidez_disipacion", 3.2))
+        temp_objetivo_sarten = _parse_num(d.get("temp_objetivo_sarten_c", 190.0))
+        k_sarten = _parse_num(d.get("k_sarten", 0.7))
         if mc_n < 1000:
             raise ValueError("mc_n debe ser al menos 1000 para el dashboard integrado.")
         if pi_n < 1000:
             raise ValueError("pi_n debe ser al menos 1000 para el dashboard integrado.")
         if cloud_n < 200:
             raise ValueError("cloud_n debe ser al menos 200 para una nube térmica estable.")
+        if radio_hornalla <= 0:
+            raise ValueError("El radio de la hornalla debe ser mayor a 0.")
+        if radio_disco <= radio_hornalla:
+            raise ValueError("El radio de análisis debe ser mayor que el radio de la hornalla.")
+        if potencia_hornalla <= 0:
+            raise ValueError("La potencia térmica debe ser mayor a 0.")
+        if rapidez_disipacion <= 0:
+            raise ValueError("La rapidez de disipación debe ser mayor a 0.")
+        if k_sarten <= 0:
+            raise ValueError("k_sarten debe ser mayor a 0.")
 
         t_ini = time.perf_counter()
         rng = random.Random(mc_seed)
 
         # Escenario: hornalla domestica con flujo de calor radial.
-        ambiente = 24.0
-        q0 = 320.0
-        alfa = 3.2
-        temp_segura = 60.0
+        q0 = potencia_hornalla
+        alfa = rapidez_disipacion
+        radio_referencia = max(radio_hornalla, 0.01)
+        xs_bound = max(0.9, radio_disco + 0.1)
 
         # 1) Raices
-        f_balance = "24 + 320*exp(-3.2*x) - 60 - 10*x"
-        g_balance = "-(1/3.2)*log((36 + 10*x)/320)"
+        f_balance = f"{ambiente} + {q0}*exp(-{alfa}*x) - {temp_segura}"
+        g_balance = f"-(1/{alfa})*log(({temp_segura} - {ambiente})/{q0})"
+        raiz_analitica = (1.0 / alfa) * math.log(q0 / max(temp_segura - ambiente, 1e-12))
+        if raiz_analitica <= 0 or raiz_analitica >= radio_disco:
+            raise ValueError("Con esos parámetros no existe una distancia segura dentro del radio analizado.")
 
-        r_bis = biseccion(f_balance, 0.0, 2.0, 1e-8, 120)
-        r_pf = punto_fijo(g_balance, 0.5, 1e-8, 120)
-        r_newton = newton_raphson(f_balance, 0.7, None, 1e-10, 80)
-        r_aitken = aitken_desde_punto_fijo(g_balance, 0.5, 1e-10, 80)
+        r_bis = biseccion(f_balance, 0.0, radio_disco, 1e-8, 120)
+        r_pf = punto_fijo(g_balance, max(radio_hornalla, 0.2), 1e-8, 120)
+        r_newton = newton_raphson(f_balance, max(radio_hornalla, 0.3), None, 1e-10, 80)
+        r_aitken = aitken_desde_punto_fijo(g_balance, max(radio_hornalla, 0.2), 1e-10, 80)
 
         # 2) Interpolacion + derivada radial
+        r_interpolacion = min(0.38, radio_disco * 0.55)
+        r_gradiente = min(0.30, radio_disco * 0.45)
+        puntos_base = [0.00, 0.15, 0.30, 0.45, 0.60]
+        escala_r = radio_disco / 0.8
+        radios_sensor = [min(radio_disco, round(p * escala_r, 4)) for p in puntos_base]
         puntos_sensor = [
-            (0.00, ambiente + q0 * math.exp(-alfa * 0.00) + 0.0),
-            (0.15, ambiente + q0 * math.exp(-alfa * 0.15) + 5.0),
-            (0.30, ambiente + q0 * math.exp(-alfa * 0.30) - 3.0),
-            (0.45, ambiente + q0 * math.exp(-alfa * 0.45) + 2.0),
-            (0.60, ambiente + q0 * math.exp(-alfa * 0.60) - 2.0),
+            (radios_sensor[0], ambiente + q0 * math.exp(-alfa * radios_sensor[0]) + 0.0),
+            (radios_sensor[1], ambiente + q0 * math.exp(-alfa * radios_sensor[1]) + 5.0),
+            (radios_sensor[2], ambiente + q0 * math.exp(-alfa * radios_sensor[2]) - 3.0),
+            (radios_sensor[3], ambiente + q0 * math.exp(-alfa * radios_sensor[3]) + 2.0),
+            (radios_sensor[4], ambiente + q0 * math.exp(-alfa * radios_sensor[4]) - 2.0),
         ]
-        temp_r038 = interpolacion_lagrange(puntos_sensor, 0.38)
-        gradiente_r03 = diferencia_central("24 + 320*exp(-3.2*x)", 0.30, 1e-4)
+        temp_r038 = interpolacion_lagrange(puntos_sensor, r_interpolacion)
+        gradiente_r03 = diferencia_central(f"{ambiente} + {q0}*exp(-{alfa}*x)", r_gradiente, 1e-4)
 
-        # 3) Integracion (flujo total en disco de radio 0.8 m)
-        f_energia = "2*pi*x*320*exp(-3.2*x)"
-        a, b = 0.0, 0.8
+        # 3) Integracion (flujo total en disco de radio configurable)
+        f_energia = f"2*pi*x*{q0}*exp(-{alfa}*x)"
+        a, b = 0.0, radio_disco
         i_trap = trapecio_compuesto(f_energia, a, b, 12)
         i_s13 = simpson_13_compuesto(f_energia, a, b, 12)
         i_s38 = simpson_38_compuesto(f_energia, a, b, 12)
@@ -412,9 +438,9 @@ def api_caso_practico_integrado():
         mc_pi = estimar_pi_geometrico(pi_n, mc_seed)
 
         # 5) EDO (calentamiento de una sarten)
-        ode_expr = "-0.7*(y-190)"
+        ode_expr = f"-{k_sarten}*(y-{temp_objetivo_sarten})"
         t0, y0 = 0.0, 25.0
-        exacta = "190 - 165*exp(-0.7*t)"
+        exacta = f"{temp_objetivo_sarten} - ({temp_objetivo_sarten - y0})*exp(-{k_sarten}*t)"
         edo_e = euler(ode_expr, t0, y0, h, pasos, exacta)
         edo_h = heun(ode_expr, t0, y0, h, pasos, exacta)
         edo_rk4 = runge_kutta_4(ode_expr, t0, y0, h, pasos, exacta)
@@ -422,26 +448,32 @@ def api_caso_practico_integrado():
         # 6) Visualizaciones (nube de puntos + perfil radial + mapa termico)
         nube_puntos = []
         for _ in range(cloud_n):
-            x = rng.uniform(-0.85, 0.85)
-            y = rng.uniform(-0.85, 0.85)
+            x = rng.uniform(-xs_bound, xs_bound)
+            y = rng.uniform(-xs_bound, xs_bound)
             r = math.sqrt(x * x + y * y)
-            t = ambiente + q0 * math.exp(-alfa * r) + rng.uniform(-4.0, 4.0)
+            if r <= radio_hornalla:
+                t = ambiente + q0 + rng.uniform(-6.0, 6.0)
+            else:
+                t = ambiente + q0 * math.exp(-alfa * (r - radio_hornalla)) + rng.uniform(-4.0, 4.0)
             nube_puntos.append([x, y, t])
 
-        rs = [0.8 * i / 120.0 for i in range(121)]
-        ts = [ambiente + q0 * math.exp(-alfa * r) for r in rs]
+        rs = [radio_disco * i / 120.0 for i in range(121)]
+        ts = [ambiente + (q0 if r <= radio_hornalla else q0 * math.exp(-alfa * (r - radio_hornalla))) for r in rs]
 
         # Grilla continua para heatmap 2D
         grid_n = 49
-        xs = [-0.9 + (1.8 * i / (grid_n - 1)) for i in range(grid_n)]
-        ys = [-0.9 + (1.8 * j / (grid_n - 1)) for j in range(grid_n)]
+        xs = [(-xs_bound) + ((2 * xs_bound) * i / (grid_n - 1)) for i in range(grid_n)]
+        ys = [(-xs_bound) + ((2 * xs_bound) * j / (grid_n - 1)) for j in range(grid_n)]
 
         # Mapa estacionario
         heatmap_estatico = []
         for x in xs:
             for y in ys:
                 r = math.sqrt(x * x + y * y)
-                t = ambiente + q0 * math.exp(-alfa * r)
+                if r <= radio_hornalla:
+                    t = ambiente + q0
+                else:
+                    t = ambiente + q0 * math.exp(-alfa * (r - radio_hornalla))
                 heatmap_estatico.append([x, y, t])
 
         # Animacion temporal: encendido progresivo de la hornalla
@@ -454,7 +486,10 @@ def api_caso_practico_integrado():
             for x in xs:
                 for y in ys:
                     r = math.sqrt(x * x + y * y)
-                    t = ambiente + (q0 * escala) * math.exp(-alfa * r)
+                    if r <= radio_hornalla:
+                        t = ambiente + (q0 * escala)
+                    else:
+                        t = ambiente + (q0 * escala) * math.exp(-alfa * (r - radio_hornalla))
                     frame.append([x, y, t])
             frames_anim.append({"t": tt, "data": frame})
 
@@ -475,6 +510,12 @@ def api_caso_practico_integrado():
                     "ambiente_c": ambiente,
                     "temperatura_segura_c": temp_segura,
                     "distancia_segura_m": r_newton.aproximacion,
+                    "radio_hornalla_m": radio_hornalla,
+                    "radio_disco_m": radio_disco,
+                    "potencia_hornalla": q0,
+                    "rapidez_disipacion": alfa,
+                    "temp_objetivo_sarten_c": temp_objetivo_sarten,
+                    "k_sarten": k_sarten,
                 },
                 "raices": {
                     "biseccion": {
@@ -510,6 +551,7 @@ def api_caso_practico_integrado():
                     "valor_interpolado": temp_r038.valor_interpolado,
                     "polinomio": temp_r038.metadatos.get("polinomio", ""),
                     "derivada_t3": gradiente_r03,
+                    "x_gradiente": r_gradiente,
                 },
                 "integracion": {
                     "intervalo": [a, b],
@@ -564,6 +606,7 @@ def api_caso_practico_integrado():
                     "nube_puntos": nube_puntos,
                     "curva_radial": {"r": rs, "temp": ts},
                     "heatmap_estatico": heatmap_estatico,
+                    "bounds": {"min": -xs_bound, "max": xs_bound},
                     "heatmap_animado": {
                         "tiempos": tiempos_anim,
                         "frames": frames_anim,

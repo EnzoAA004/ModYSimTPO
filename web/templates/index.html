@@ -440,6 +440,34 @@
                         <label for="caso-seed">Seed</label>
                         <input type="text" id="caso-seed" class="input-math" data-keyboard="true" value="42">
                     </div>
+                    <div class="field-group">
+                        <label for="caso-ambiente">Temperatura ambiente (°C)</label>
+                        <input type="text" id="caso-ambiente" class="input-math" data-keyboard="true" value="24">
+                    </div>
+                    <div class="field-group">
+                        <label for="caso-temperatura-segura">Temperatura segura (°C)</label>
+                        <input type="text" id="caso-temperatura-segura" class="input-math" data-keyboard="true" value="60">
+                    </div>
+                    <div class="field-group">
+                        <label for="caso-radio-hornalla">Radio de la hornalla (m)</label>
+                        <input type="text" id="caso-radio-hornalla" class="input-math" data-keyboard="true" value="0.11">
+                    </div>
+                    <div class="field-group">
+                        <label for="caso-potencia">Potencia térmica inicial</label>
+                        <input type="text" id="caso-potencia" class="input-math" data-keyboard="true" value="320">
+                    </div>
+                    <div class="field-group">
+                        <label for="caso-alpha">Dispersión del calor</label>
+                        <input type="text" id="caso-alpha" class="input-math" data-keyboard="true" value="3.2">
+                    </div>
+                    <div class="field-group">
+                        <label for="caso-perdida-aire">Pérdida por aire</label>
+                        <input type="text" id="caso-perdida-aire" class="input-math" data-keyboard="true" value="10">
+                    </div>
+                    <div class="field-group">
+                        <label for="caso-ruido-sensor">Variación sensores (±°C)</label>
+                        <input type="text" id="caso-ruido-sensor" class="input-math" data-keyboard="true" value="4">
+                    </div>
                     <button id="btn-caso-practico" class="btn-execute">
                         <span class="btn-icon">▶</span> Ejecutar Dashboard Integrado
                     </button>
@@ -452,6 +480,7 @@
                     <div class="card-body">
                         <div id="caso-msg" class="result-message"></div>
                         <div id="caso-kpis" class="caso-kpis"></div>
+                        <div id="caso-lectura" class="caso-lectura"></div>
                     </div>
                 </div>
 

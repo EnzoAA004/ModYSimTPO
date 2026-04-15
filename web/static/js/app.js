@@ -678,26 +678,36 @@
     }
 
     function buildCaseKpis(res) {
+        const rf = res.aplicacion.radio_hornalla_m;
+        const rs = res.aplicacion.radio_superficie_m;
+        const areaRatio = rs > 0 ? (rf * rf) / (rs * rs) : 0;
+        const cobertura = Math.max(0, Math.min(100, areaRatio * 100));
+        const potencia = res.aplicacion.potencia_hornalla_kw;
         const kpis = [
-            {
-                title: 'Latencia total',
-                value: `${res.caso.runtime_ms.toFixed(1)} ms`,
-                note: 'corrida integrada',
-            },
             {
                 title: 'Zona segura',
                 value: `${res.aplicacion.distancia_segura_m.toFixed(3)} m`,
-                note: `T <= ${res.aplicacion.temperatura_segura_c.toFixed(0)} C`,
+                note: `Meta: <= ${res.aplicacion.temperatura_segura_c.toFixed(0)} C`,
             },
             {
-                title: 'Potencia MC',
-                value: res.montecarlo.integral.estimacion.toFixed(2),
-                note: `n=${res.montecarlo.integral.n}`,
+                title: 'Potencia',
+                value: `${potencia.toFixed(2)} kW`,
+                note: 'fuerza de la hornalla',
+            },
+            {
+                title: 'Cobertura',
+                value: `${cobertura.toFixed(1)}%`,
+                note: 'área hornalla/superficie',
             },
             {
                 title: 'Sartén final',
                 value: res.edo.metodos.rk4.y_final.toFixed(3),
                 note: 'EDO RK4',
+            },
+            {
+                title: 'Latencia total',
+                value: `${res.caso.runtime_ms.toFixed(1)} ms`,
+                note: 'corrida integrada',
             },
         ];
         $('#caso-kpis').innerHTML = kpis.map(k => `
@@ -707,6 +717,59 @@
                 <p class="kpi-note">${k.note}</p>
             </div>
         `).join('');
+    }
+
+    function buildSimpleCaseStory(res) {
+        const el = $('#caso-historia');
+        if (!el) return;
+        const amb = res.aplicacion.ambiente_c;
+        const seg = res.aplicacion.temperatura_segura_c;
+        const safe = res.aplicacion.distancia_segura_m;
+        const finalT = res.edo.metodos.rk4.y_final;
+        const finalDelta = Math.abs(finalT - res.aplicacion.temp_fuente_c);
+        const grad = res.interpolacion.derivada_t3;
+        const ritmo = grad < -40 ? 'rápido' : grad < -20 ? 'moderado' : 'suave';
+
+        el.innerHTML = `
+            <div class="caso-simple-grid">
+                <div class="caso-simple-card">
+                    <h4>Lectura rápida</h4>
+                    <p>
+                        El ambiente está en <strong>${amb.toFixed(1)} °C</strong> y tomamos como límite seguro
+                        <strong>${seg.toFixed(1)} °C</strong>.
+                        La zona segura empieza aproximadamente a <strong>${safe.toFixed(2)} m</strong> del centro.
+                    </p>
+                </div>
+                <div class="caso-simple-card">
+                    <h4>¿Qué muestran los gráficos?</h4>
+                    <p>
+                        Cerca del centro el calor es más alto, y baja al alejarnos.
+                        En este escenario, la caída de temperatura es <strong>${ritmo}</strong>
+                        (gradiente: <strong>${grad.toFixed(2)} °C/m</strong>).
+                    </p>
+                </div>
+                <div class="caso-simple-card">
+                    <h4>Resumen temporal</h4>
+                    <p>
+                        La sartén termina en <strong>${finalT.toFixed(1)} °C</strong>.
+                        Queda a <strong>${finalDelta.toFixed(1)} °C</strong> del valor máximo de la fuente.
+                    </p>
+                </div>
+            </div>
+        `;
+    }
+
+    function buildScenarioBadges(res) {
+        const el = $('#caso-badges');
+        if (!el) return;
+        const buildBadge = (label, value) => `<span class="caso-badge"><strong>${label}:</strong> ${value}</span>`;
+        el.innerHTML = [
+            buildBadge('Radio hornalla', `${res.aplicacion.radio_hornalla_m.toFixed(2)} m`),
+            buildBadge('Superficie analizada', `${res.aplicacion.radio_superficie_m.toFixed(2)} m`),
+            buildBadge('Temperatura fuente', `${res.aplicacion.temp_fuente_c.toFixed(1)} °C`),
+            buildBadge('Ambiente', `${res.aplicacion.ambiente_c.toFixed(1)} °C`),
+            buildBadge('Intensidad', res.caso.intensidad),
+        ].join('');
     }
 
     function renderCaseCharts(res) {
@@ -720,6 +783,7 @@
             throw new Error('No se pudieron inicializar los charts ECharts.');
         }
 
+        const surfaceRadius = res.aplicacion.radio_superficie_m;
         chartRaices.setOption({
             backgroundColor: 'transparent',
             tooltip: {
@@ -734,8 +798,8 @@
                 type: 'value',
                 name: 'x (m)',
                 nameTextStyle: { color: '#94a3b8', fontSize: 11 },
-                min: -0.9,
-                max: 0.9,
+                min: -surfaceRadius,
+                max: surfaceRadius,
                 axisLine: { lineStyle: { color: '#334155' } },
                 axisLabel: { color: '#94a3b8' },
                 splitLine: { lineStyle: { color: 'rgba(148,163,184,0.06)' } },
@@ -744,8 +808,8 @@
                 type: 'value',
                 name: 'y (m)',
                 nameTextStyle: { color: '#94a3b8', fontSize: 11 },
-                min: -0.9,
-                max: 0.9,
+                min: -surfaceRadius,
+                max: surfaceRadius,
                 axisLine: { lineStyle: { color: '#334155' } },
                 splitLine: { lineStyle: { color: 'rgba(148,163,184,0.08)' } },
                 axisLabel: { color: '#94a3b8' },
@@ -790,6 +854,7 @@
 
         // ---- Perfil Radial + Sensores ----
         const rSafe = res.aplicacion.distancia_segura_m;
+        const rHornalla = res.aplicacion.radio_hornalla_m;
         chartInteg.setOption({
             backgroundColor: 'transparent',
             tooltip: {
@@ -840,10 +905,13 @@
                 },
                 emphasis: { scale: 1.6 },
             }],
-            markLine: rSafe ? {
+            markLine: {
                 silent: true,
-                data: [{ xAxis: rSafe, lineStyle: { color: '#22c55e', type: 'dashed', width: 2 } }],
-            } : undefined,
+                data: [
+                    { xAxis: rHornalla, lineStyle: { color: '#f59e0b', type: 'solid', width: 2 } },
+                    { xAxis: rSafe, lineStyle: { color: '#22c55e', type: 'dashed', width: 2 } },
+                ],
+            },
         });
 
         // ---- Potencia Térmica Integrada (barras coloreadas) ----
@@ -992,8 +1060,8 @@
                     type: 'value',
                     name: 'x (m)',
                     nameTextStyle: { color: '#94a3b8', fontSize: 11 },
-                    min: -0.9,
-                    max: 0.9,
+                    min: -surfaceRadius,
+                    max: surfaceRadius,
                     axisLine: { lineStyle: { color: '#334155' } },
                     axisLabel: { color: '#94a3b8' },
                     splitLine: { lineStyle: { color: 'rgba(148,163,184,0.06)' } },
@@ -1002,8 +1070,8 @@
                     type: 'value',
                     name: 'y (m)',
                     nameTextStyle: { color: '#94a3b8', fontSize: 11 },
-                    min: -0.9,
-                    max: 0.9,
+                    min: -surfaceRadius,
+                    max: surfaceRadius,
                     axisLine: { lineStyle: { color: '#334155' } },
                     splitLine: { lineStyle: { color: 'rgba(148,163,184,0.06)' } },
                     axisLabel: { color: '#94a3b8' },
@@ -1056,37 +1124,40 @@
 
         const intDiff = Math.abs(s13 - mcI);
         const intPct  = s13 !== 0 ? ((intDiff / Math.abs(s13)) * 100).toFixed(2) : '—';
+        const rHornalla = res.aplicacion.radio_hornalla_m;
+        const tFuente = res.aplicacion.temp_fuente_c;
+        const potencia = res.aplicacion.potencia_hornalla_kw;
 
         const items = [
             {
                 icon: '🎯',
                 title: 'Zona de seguridad',
-                text: `A partir de los <strong>${nwIter}</strong> iteraciones de Newton-Raphson se determinó que la distancia segura es de <strong>${safe.toFixed(3)} m</strong> (donde T ≤ ${safeT.toFixed(0)} °C). Bisección llegó al mismo resultado en <strong>${biIter}</strong> iteraciones y Aitken en <strong>${aiIter}</strong>. Esto muestra cómo Newton converge mucho más rápido gracias a su orden cuadrático, mientras que Bisección es más lento pero garantiza convergencia.`,
+                text: `Con radio de hornalla <strong>${rHornalla.toFixed(2)} m</strong>, potencia <strong>${potencia.toFixed(2)} kW</strong> y temperatura de fuente <strong>${tFuente.toFixed(0)} °C</strong>, la zona segura se ubica alrededor de <strong>${safe.toFixed(3)} m</strong> (meta: T <= ${safeT.toFixed(0)} °C).`,
             },
             {
                 icon: '📏',
                 title: 'Interpolación y gradiente',
-                text: `Con apenas unos pocos sensores simulados se logró reconstruir el perfil térmico continuo mediante Lagrange. El gradiente calculado por diferencia central en r = 0.30 m fue de <strong>${res.interpolacion.derivada_t3.toFixed(3)} °C/m</strong>, lo que indica la tasa de caída de temperatura a esa distancia. Cuanto más negativo, más rápido se enfría el entorno al alejarse de la hornalla.`,
+                text: `Con pocos sensores se reconstruyó el perfil completo de calor. El gradiente en r = 0.30 m fue <strong>${res.interpolacion.derivada_t3.toFixed(3)} °C/m</strong>: cuanto más negativo, más rápido cae la temperatura al alejarse.`,
             },
             {
                 icon: '⚡',
                 title: 'Potencia térmica integrada',
-                text: `Los 5 métodos determinísticos arrojaron resultados muy similares (Simpson 1/3 = <strong>${s13.toFixed(4)}</strong>, Trapecio = <strong>${trap.toFixed(4)}</strong>), lo que valida la consistencia numérica. Las pequeñas diferencias se deben al orden de precisión de cada método: Simpson es O(h⁴) mientras que Trapecio es solo O(h²).`,
+                text: `Los métodos dieron valores parecidos (Simpson 1/3 = <strong>${s13.toFixed(4)}</strong>, Trapecio = <strong>${trap.toFixed(4)}</strong>). En la práctica, eso indica que la estimación de energía es estable.`,
             },
             {
                 icon: '🎲',
                 title: 'Monte Carlo vs. determinístico',
-                text: `La estimación Monte Carlo fue <strong>${mcI.toFixed(4)}</strong> con un intervalo de confianza al 95% de [${mcLo.toFixed(3)}, ${mcHi.toFixed(3)}]. La diferencia contra Simpson 1/3 fue de apenas un <strong>${intPct}%</strong>. Esto demuestra que Monte Carlo, aunque estocástico, converge al mismo valor — su potencia real aparece en dimensiones altas donde los métodos clásicos dejan de ser viables.`,
+                text: `Monte Carlo estimó <strong>${mcI.toFixed(4)}</strong> con rango probable [${mcLo.toFixed(3)}, ${mcHi.toFixed(3)}]. La diferencia frente a Simpson fue de <strong>${intPct}%</strong>, o sea que ambos cuentan una historia parecida.`,
             },
             {
                 icon: '🔥',
                 title: 'Calentamiento de sartén (EDO)',
-                text: `RK4 predijo una temperatura final de <strong>${rk4F.toFixed(2)} °C</strong> con un error de apenas <strong>${rk4E.toExponential(2)}</strong> respecto a la solución exacta. Euler, en cambio, llegó a <strong>${euF.toFixed(2)} °C</strong> — se nota cómo un método de orden 1 acumula más error paso a paso. Heun queda en el medio, demostrando que promediar predictor y corrector ya mejora mucho la precisión.`,
+                text: `RK4 terminó en <strong>${rk4F.toFixed(2)} °C</strong> con error muy chico (<strong>${rk4E.toExponential(2)}</strong>). Euler quedó en <strong>${euF.toFixed(2)} °C</strong>, mostrando una diferencia mayor.`,
             },
             {
                 icon: '🥧',
                 title: 'Estimación de π',
-                text: `Como test adicional, Monte Carlo estimó π ≈ <strong>${piEst.toFixed(6)}</strong>, con un error absoluto de <strong>${piErr.toFixed(5)}</strong>. Es un ejercicio clásico que demuestra cómo la aleatoriedad, con suficientes muestras, puede aproximar constantes matemáticas con sorprendente precisión.`,
+                text: `Como control de calidad del muestreo, Monte Carlo estimó π ≈ <strong>${piEst.toFixed(6)}</strong> con error <strong>${piErr.toFixed(5)}</strong>.`,
             },
         ];
 
@@ -1105,12 +1176,10 @@
             <div class="conclusion-veredicto">
                 <span class="veredicto-label">VEREDICTO FINAL</span>
                 <p class="veredicto-text">
-                    El escenario integrado demuestra que <strong>no existe un único "mejor método"</strong>:
-                    Newton-Raphson es imbatible en velocidad para raíces, Simpson domina en integración determinística,
-                    Monte Carlo aporta incertidumbre probabilística indispensable en sistemas reales,
-                    y RK4 es el estándar de oro para EDOs cuando se busca precisión sin costo excesivo.
-                    La clave está en <strong>elegir la herramienta correcta para cada sub-problema</strong>
-                    y saber interpretar los resultados en contexto.
+                    En simple: cuando subís potencia o temperatura de fuente, el calor se expande más;
+                    si achicás radio de hornalla o potencia, se concentra menos.
+                    Lo importante es que el panel te deja ver rápido
+                    <strong>dónde está la zona segura y cómo cambia al mover parámetros</strong>.
                 </p>
             </div>
         `;
@@ -1131,6 +1200,12 @@
 
             const intensidad = $('#caso-intensidad').value;
             const seed = $('#caso-seed').value.trim() || '42';
+            const radioHornalla = parseFloat($('#caso-radio-hornalla').value);
+            const radioSuperficie = parseFloat($('#caso-radio-superficie').value);
+            const tempFuente = parseFloat($('#caso-temp-fuente').value);
+            const ambiente = parseFloat($('#caso-temp-ambiente').value);
+            const tempSegura = parseFloat($('#caso-temp-segura').value);
+            const potencia = parseFloat($('#caso-potencia').value);
             const profile = {
                 base: { mc_n: 6000, pi_n: 8000, cloud_n: 900, pasos: 12, h: 0.5 },
                 pro: { mc_n: 20000, pi_n: 25000, cloud_n: 1800, pasos: 20, h: 0.3 },
@@ -1140,6 +1215,13 @@
             const res = await API.casoPracticoIntegrado({
                 ...profile,
                 seed,
+                radio_hornalla_m: radioHornalla,
+                radio_superficie_m: radioSuperficie,
+                temp_fuente_c: tempFuente,
+                ambiente_c: ambiente,
+                temp_segura_c: tempSegura,
+                potencia_hornalla_kw: potencia,
+                intensidad,
             });
             const area = $('#caso-resultado');
             area.style.display = '';
@@ -1152,6 +1234,8 @@
             );
 
             buildCaseKpis(res);
+            buildScenarioBadges(res);
+            buildSimpleCaseStory(res);
 
             const resumenRows = [
                 { bloque: 'Raíces · Distancia segura (Newton)', valor: res.raices.newton_raphson.aproximacion, detalle: `iter=${res.raices.newton_raphson.iteraciones}` },
@@ -1159,7 +1243,7 @@
                 { bloque: 'Raíces · Aitken', valor: res.raices.aitken.aproximacion, detalle: `iter=${res.raices.aitken.iteraciones}` },
                 { bloque: 'Interpolación · T(r=0.38m)', valor: res.interpolacion.valor_interpolado, detalle: 'lectura intermedia' },
                 { bloque: 'Gradiente radial · dT/dr (r=0.30m)', valor: res.interpolacion.derivada_t3, detalle: 'diferencia central' },
-                { bloque: 'Integración · Simpson 1/3', valor: res.integracion.resultados.simpson13, detalle: '[0, 0.8] m' },
+                { bloque: 'Integración · Simpson 1/3', valor: res.integracion.resultados.simpson13, detalle: `[0, ${res.aplicacion.radio_superficie_m.toFixed(2)}] m` },
                 { bloque: 'Monte Carlo · Integral', valor: res.montecarlo.integral.estimacion, detalle: `IC95% [${res.montecarlo.integral.ic_bajo.toFixed(3)}, ${res.montecarlo.integral.ic_alto.toFixed(3)}]` },
                 { bloque: 'Monte Carlo · Pi', valor: res.montecarlo.pi.estimacion, detalle: `IC95% [${res.montecarlo.pi.ic_bajo.toFixed(3)}, ${res.montecarlo.pi.ic_alto.toFixed(3)}]` },
                 { bloque: 'EDO · Sartén final RK4', valor: res.edo.metodos.rk4.y_final, detalle: `error=${res.edo.metodos.rk4.error_final.toExponential(3)}` },
