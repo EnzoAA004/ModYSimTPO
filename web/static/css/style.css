@@ -1111,6 +1111,10 @@ body {
     align-content: start;
 }
 
+.caso-controls .field-group.full-width {
+    grid-column: 1 / -1;
+}
+
 .caso-controls .btn-execute {
     grid-column: 1 / -1;
     margin-top: 0.15rem;
