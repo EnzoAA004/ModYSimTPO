@@ -678,6 +678,16 @@
         return Number.NaN;
     }
 
+    function radialTemperature(res, radius) {
+        const app = res?.aplicacion || {};
+        const ambiente = Number(app.ambiente_c ?? 24);
+        const potencia = Number(app.potencia_hornalla ?? app.potencia_hornalla_kw ?? 320);
+        const alpha = Number(app.rapidez_disipacion ?? 3.2);
+        const rHornalla = Number(app.radio_hornalla_m ?? 0.11);
+        if (radius <= rHornalla) return ambiente + potencia;
+        return ambiente + potencia * Math.exp(-alpha * (radius - rHornalla));
+    }
+
     function initCaseChart(id) {
         const el = document.getElementById(id);
         if (!el || typeof echarts === 'undefined') return null;
@@ -801,6 +811,17 @@
         }
 
         const surfaceRadius = caseAppNum(res, 'radio_superficie_m', 'radio_disco_m');
+        const rHornalla = caseAppNum(res, 'radio_hornalla_m');
+        const ringData = [];
+        const ringSteps = 96;
+        for (let i = 0; i <= ringSteps; i += 1) {
+            const theta = (2 * Math.PI * i) / ringSteps;
+            ringData.push([
+                rHornalla * Math.cos(theta),
+                rHornalla * Math.sin(theta),
+                radialTemperature(res, rHornalla),
+            ]);
+        }
         chartRaices.setOption({
             backgroundColor: 'transparent',
             tooltip: {
@@ -848,15 +869,26 @@
                 data: res.visualizacion.heatmap_estatico,
                 blurSize: 18,
                 pointSize: 5,
-                itemStyle: { opacity: 0.55 },
+                itemStyle: { opacity: 0.42 },
                 z: 1,
             }, {
                 name: 'Temperatura',
                 type: 'scatter',
                 data: res.visualizacion.nube_puntos,
-                symbolSize: 7,
-                itemStyle: { opacity: 0.85 },
+                symbolSize: 8,
+                itemStyle: {
+                    opacity: 0.96,
+                    borderColor: 'rgba(15,23,42,0.65)',
+                    borderWidth: 0.6,
+                },
                 emphasis: { scale: 1.8, itemStyle: { shadowBlur: 10, shadowColor: 'rgba(6,182,212,0.5)' } },
+                z: 2,
+            }, {
+                name: 'Borde hornalla',
+                type: 'line',
+                data: ringData,
+                showSymbol: false,
+                lineStyle: { color: '#fbbf24', width: 2, type: 'dashed' },
                 z: 2,
             }, {
                 name: 'Centro hornalla',
@@ -871,7 +903,6 @@
 
         // ---- Perfil Radial + Sensores ----
         const rSafe = res.aplicacion.distancia_segura_m;
-        const rHornalla = res.aplicacion.radio_hornalla_m;
         chartInteg.setOption({
             backgroundColor: 'transparent',
             tooltip: {

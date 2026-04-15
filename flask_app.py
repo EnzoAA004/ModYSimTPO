@@ -370,6 +370,8 @@ def api_caso_practico_integrado():
         radio_disco = _parse_num(d.get("radio_disco_m", 0.8))
         potencia_hornalla = _parse_num(d.get("potencia_hornalla", 320.0))
         rapidez_disipacion = _parse_num(d.get("rapidez_disipacion", 3.2))
+        perdida_lineal = _parse_num(d.get("perdida_lineal", 10.0))
+        ruido_sensor = _parse_num(d.get("ruido_sensor", 4.0))
         temp_objetivo_sarten = _parse_num(d.get("temp_objetivo_sarten_c", 190.0))
         k_sarten = _parse_num(d.get("k_sarten", 0.7))
         if mc_n < 1000:
@@ -386,6 +388,10 @@ def api_caso_practico_integrado():
             raise ValueError("La potencia térmica debe ser mayor a 0.")
         if rapidez_disipacion <= 0:
             raise ValueError("La rapidez de disipación debe ser mayor a 0.")
+        if perdida_lineal < 0:
+            raise ValueError("La pérdida por aire no puede ser negativa.")
+        if ruido_sensor < 0:
+            raise ValueError("La variación de sensores no puede ser negativa.")
         if k_sarten <= 0:
             raise ValueError("k_sarten debe ser mayor a 0.")
 
@@ -395,8 +401,17 @@ def api_caso_practico_integrado():
         # Escenario: hornalla domestica con flujo de calor radial.
         q0 = potencia_hornalla
         alfa = rapidez_disipacion
-        radio_referencia = max(radio_hornalla, 0.01)
-        xs_bound = max(0.9, radio_disco + 0.1)
+        xs_bound = radio_disco
+
+        def _temp_radial(r: float, escala: float = 1.0) -> float:
+            """Perfil suave para visualización térmica radial."""
+            if r <= radio_hornalla:
+                ratio = r / max(radio_hornalla, 1e-12)
+                t_core = ambiente + (q0 * escala) * (1.0 - 0.22 * (ratio ** 2))
+                return max(ambiente, t_core)
+            dist = r - radio_hornalla
+            t_ext = ambiente + (q0 * escala) * math.exp(-alfa * dist) - perdida_lineal * dist
+            return max(ambiente, t_ext)
 
         # 1) Raices
         f_balance = f"{ambiente} + {q0}*exp(-{alfa}*x) - {temp_segura}"
@@ -457,17 +472,16 @@ def api_caso_practico_integrado():
         # 6) Visualizaciones (nube de puntos + perfil radial + mapa termico)
         nube_puntos = []
         for _ in range(cloud_n):
-            x = rng.uniform(-xs_bound, xs_bound)
-            y = rng.uniform(-xs_bound, xs_bound)
-            r = math.sqrt(x * x + y * y)
-            if r <= radio_hornalla:
-                t = ambiente + q0 + rng.uniform(-6.0, 6.0)
-            else:
-                t = ambiente + q0 * math.exp(-alfa * (r - radio_hornalla)) + rng.uniform(-4.0, 4.0)
+            # Muestreo polar uniforme en disco para evitar bordes cuadrados artificiales.
+            rr = radio_disco * math.sqrt(rng.random())
+            theta = 2.0 * math.pi * rng.random()
+            x = rr * math.cos(theta)
+            y = rr * math.sin(theta)
+            t = _temp_radial(rr) + rng.uniform(-ruido_sensor, ruido_sensor)
             nube_puntos.append([x, y, t])
 
         rs = [radio_disco * i / 120.0 for i in range(121)]
-        ts = [ambiente + (q0 if r <= radio_hornalla else q0 * math.exp(-alfa * (r - radio_hornalla))) for r in rs]
+        ts = [_temp_radial(r) for r in rs]
 
         # Grilla continua para heatmap 2D
         grid_n = 49
@@ -479,10 +493,7 @@ def api_caso_practico_integrado():
         for x in xs:
             for y in ys:
                 r = math.sqrt(x * x + y * y)
-                if r <= radio_hornalla:
-                    t = ambiente + q0
-                else:
-                    t = ambiente + q0 * math.exp(-alfa * (r - radio_hornalla))
+                t = _temp_radial(r)
                 heatmap_estatico.append([x, y, t])
 
         # Animacion temporal: encendido progresivo de la hornalla
@@ -495,10 +506,7 @@ def api_caso_practico_integrado():
             for x in xs:
                 for y in ys:
                     r = math.sqrt(x * x + y * y)
-                    if r <= radio_hornalla:
-                        t = ambiente + (q0 * escala)
-                    else:
-                        t = ambiente + (q0 * escala) * math.exp(-alfa * (r - radio_hornalla))
+                    t = _temp_radial(r, escala=escala)
                     frame.append([x, y, t])
             frames_anim.append({"t": tt, "data": frame})
 
@@ -524,6 +532,8 @@ def api_caso_practico_integrado():
                     "radio_disco_m": radio_disco,
                     "potencia_hornalla": q0,
                     "rapidez_disipacion": alfa,
+                    "perdida_lineal": perdida_lineal,
+                    "ruido_sensor": ruido_sensor,
                     "temp_objetivo_sarten_c": temp_objetivo_sarten,
                     "k_sarten": k_sarten,
                 },
