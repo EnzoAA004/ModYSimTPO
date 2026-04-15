@@ -539,31 +539,76 @@
 
                 <div class="caso-chart-grid">
                     <div class="card">
-                        <div class="card-header"><h3>Nube de Puntos Térmica (x, y, T)</h3></div>
+                        <div class="card-header">
+                            <h3>Nube de Puntos Térmica (x, y, T)</h3>
+                            <div class="chart-help">
+                                <button class="chart-help-btn" type="button" aria-label="Explicación del gráfico">↗</button>
+                                <div class="chart-help-popup">
+                                    Cada punto representa una medición de temperatura en una posición (x, y).<br>
+                                    Colores cálidos = más calor. Colores fríos = menos calor.
+                                </div>
+                            </div>
+                        </div>
                         <div class="card-body">
                             <div id="caso-chart-raices" class="chart-container"></div>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header"><h3>Perfil Radial + Sensores</h3></div>
+                        <div class="card-header">
+                            <h3>Perfil radial + sensores simulados</h3>
+                            <div class="chart-help">
+                                <button class="chart-help-btn" type="button" aria-label="Explicación del gráfico">↗</button>
+                                <div class="chart-help-popup">
+                                    <strong>Perfil radial</strong>: cómo cambia la temperatura desde el centro de la hornalla hacia afuera.<br>
+                                    <strong>Sensores</strong>: puntos de medición simulados que se usan como referencia real.
+                                </div>
+                            </div>
+                        </div>
                         <div class="card-body">
                             <div id="caso-chart-integracion" class="chart-container"></div>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header"><h3>Potencia Térmica Integrada (métodos)</h3></div>
+                        <div class="card-header">
+                            <h3>Potencia térmica total (comparación)</h3>
+                            <div class="chart-help">
+                                <button class="chart-help-btn" type="button" aria-label="Explicación del gráfico">↗</button>
+                                <div class="chart-help-popup">
+                                    Compara cuánto calor total estima cada método numérico.<br>
+                                    Si las barras son parecidas, significa que el resultado es consistente.
+                                </div>
+                            </div>
+                        </div>
                         <div class="card-body">
                             <div id="caso-chart-edo" class="chart-container"></div>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header"><h3>Calentamiento de Sartén (EDO)</h3></div>
+                        <div class="card-header">
+                            <h3>Calentamiento de la sartén en el tiempo</h3>
+                            <div class="chart-help">
+                                <button class="chart-help-btn" type="button" aria-label="Explicación del gráfico">↗</button>
+                                <div class="chart-help-popup">
+                                    Muestra cómo sube la temperatura con el tiempo.<br>
+                                    Cada línea es un método distinto para calcular esa evolución.
+                                </div>
+                            </div>
+                        </div>
                         <div class="card-body">
                             <div id="caso-chart-mc" class="chart-container"></div>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-header"><h3>Mapa Térmico Continuo (Animado)</h3></div>
+                        <div class="card-header">
+                            <h3>Mapa térmico animado</h3>
+                            <div class="chart-help">
+                                <button class="chart-help-btn" type="button" aria-label="Explicación del gráfico">↗</button>
+                                <div class="chart-help-popup">
+                                    Es una “película” del calor propagándose.<br>
+                                    Te deja ver cómo el calor se expande desde la hornalla con el paso del tiempo.
+                                </div>
+                            </div>
+                        </div>
                         <div class="card-body">
                             <div id="caso-chart-anim" class="chart-container"></div>
                         </div>

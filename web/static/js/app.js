@@ -1495,6 +1495,24 @@
         return Number.isFinite(num) ? num : fallback;
     }
 
+    const CASE_GRAPH_HELP = {
+        'caso-chart-raices': 'Nube térmica: cada punto representa una medición simulada en una posición (x, y). El color indica temperatura: más cálido = más caliente.',
+        'caso-chart-integracion': 'Perfil radial: muestra cómo cambia la temperatura cuando te alejás del centro de la hornalla. Sensores = puntos de medición puntuales usados para reconstruir la curva.',
+        'caso-chart-edo': 'Comparación de métodos de integración para estimar la energía total. Si las barras son parecidas, el cálculo es consistente.',
+        'caso-chart-mc': 'Evolución temporal de la temperatura de la sartén. Permite comparar qué método numérico sigue mejor la curva esperada.',
+        'caso-chart-anim': 'Mapa animado del encendido: muestra cómo el calor se expande con el tiempo desde el centro de la hornalla.',
+    };
+
+    function bindCaseHelpPopups() {
+        $$('.chart-help-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.helpTarget;
+                const text = CASE_GRAPH_HELP[target] || 'Descripción no disponible.';
+                toast(text, 'info');
+            });
+        });
+    }
+
     on('#btn-caso-practico', 'click', async () => {
         const btn = $('#btn-caso-practico');
         if (!btn) return;
@@ -1592,6 +1610,7 @@
         if (typeof renderMathInElement === 'function') {
             TheoryPanel.update('raices');
         }
+        bindCaseHelpPopups();
     });
 
 })();
