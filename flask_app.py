@@ -70,9 +70,12 @@ def _parse_num(val) -> float:
     except ValueError:
         pass
     # Parsear con SymPy para soportar pi, e, sqrt, etc.
-    expr = sp.sympify(s, locals={"pi": sp.pi, "e": sp.E, "sqrt": sp.sqrt,
-                                  "sin": sp.sin, "cos": sp.cos, "tan": sp.tan,
-                                  "log": sp.log, "exp": sp.exp, "abs": sp.Abs})
+    expr = sp.sympify(
+        s,
+        locals={"pi": sp.pi, "e": sp.E, "sqrt": sp.sqrt,
+                "sin": sp.sin, "cos": sp.cos, "tan": sp.tan,
+                "log": sp.log, "exp": sp.exp, "abs": sp.Abs},
+    )  # type: ignore[arg-type]
     return float(expr.evalf())
 
 
@@ -115,7 +118,7 @@ def api_biseccion():
             "iteraciones": [asdict(p) for p in r.iteraciones],
         })
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 @app.route("/api/raices/punto-fijo", methods=["POST"])
@@ -132,7 +135,7 @@ def api_punto_fijo():
             "iteraciones": [asdict(p) for p in r.iteraciones],
         })
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 @app.route("/api/raices/newton-raphson", methods=["POST"])
@@ -150,7 +153,7 @@ def api_newton():
             "iteraciones": [asdict(p) for p in r.iteraciones],
         })
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 @app.route("/api/raices/aitken", methods=["POST"])
@@ -167,7 +170,7 @@ def api_aitken():
             "iteraciones": [asdict(p) for p in r.iteraciones],
         })
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -179,16 +182,23 @@ def api_lagrange():
     try:
         d = _body()
         puntos = [(_parse_num(p[0]), _parse_num(p[1])) for p in d["puntos"]]
-        r = interpolacion_lagrange(puntos, _parse_num(d["x_eval"]))
+        h_val = float(d["h"]) if d.get("h") else None
+        r = interpolacion_lagrange(
+            puntos,
+            _parse_num(d["x_eval"]),
+            h=h_val,
+            f_exacta_expr=(d.get("f_exacta_expr") or None),
+        )
         return _json_ok({
             "valor_interpolado": r.valor_interpolado,
             "mensaje": r.mensaje,
             "polinomio": r.metadatos.get("polinomio", ""),
             "puntos": puntos,
             "x_eval": _parse_num(d["x_eval"]),
+            "pasos": [asdict(p) for p in r.pasos],
         })
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 @app.route("/api/interpolacion/derivada-central", methods=["POST"])
@@ -199,7 +209,7 @@ def api_derivada_central():
                                     _parse_num(d.get("h", 1e-4)))
         return _json_ok({"derivada": valor, "mensaje": f"f'({d['x']}) ≈ {valor:.10f}"})
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -225,7 +235,7 @@ def api_trapecio():
     try:
         return _api_integracion(trapecio_compuesto, _body())
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 @app.route("/api/integracion/simpson13", methods=["POST"])
@@ -233,7 +243,7 @@ def api_simpson13():
     try:
         return _api_integracion(simpson_13_compuesto, _body())
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 @app.route("/api/integracion/simpson38", methods=["POST"])
@@ -241,7 +251,7 @@ def api_simpson38():
     try:
         return _api_integracion(simpson_38_compuesto, _body())
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 @app.route("/api/integracion/rectangulo", methods=["POST"])
@@ -249,7 +259,7 @@ def api_rectangulo():
     try:
         return _api_integracion(rectangulo_medio_compuesto, _body())
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 @app.route("/api/integracion/gauss-legendre", methods=["POST"])
@@ -268,7 +278,7 @@ def api_gauss():
             "muestras": [asdict(m) for m in r.muestras],
         })
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -294,7 +304,7 @@ def api_mc_integral():
             "aportes": [p.aporte for p in r.puntos],
         })
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 @app.route("/api/montecarlo/pi", methods=["POST"])
@@ -314,7 +324,7 @@ def api_mc_pi():
             "aportes": [p.aporte for p in r.puntos],
         })
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -323,11 +333,25 @@ def api_mc_pi():
 
 def _api_edo(metodo_fn, d):
     sol = d.get("solucion_exacta") or None
-    r = metodo_fn(d["ode_expr"], _parse_num(d["t0"]), _parse_num(d["y0"]),
-                  _parse_num(d["h"]), int(_parse_num(d["pasos"])), sol)
+    tf = d.get("tf")
+    pasos = d.get("pasos")
+    tf_val = _parse_num(tf) if tf not in (None, "", "null") else None
+    pasos_val = int(_parse_num(pasos)) if pasos not in (None, "", "null") else None
+
+    r = metodo_fn(
+        d["ode_expr"],
+        _parse_num(d["t0"]),
+        _parse_num(d["y0"]),
+        _parse_num(d["h"]),
+        pasos=pasos_val,
+        tf=tf_val,
+        solucion_exacta_expr=sol,
+    )
     return _json_ok({
         "mensaje": r.mensaje,
         "pasos": [asdict(p) for p in r.pasos],
+        "metadatos": r.metadatos,
+        "solucion_exacta": r.metadatos.get("solucion_exacta_expr"),
     })
 
 
@@ -336,7 +360,7 @@ def api_euler():
     try:
         return _api_edo(euler, _body())
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 @app.route("/api/edo/heun", methods=["POST"])
@@ -344,7 +368,7 @@ def api_heun():
     try:
         return _api_edo(heun, _body())
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 # ---------------------------------------------------------------------------
@@ -464,6 +488,12 @@ def api_caso_practico_integrado():
             ultimo = edo_result.pasos[-1]
             return ultimo.error_absoluto
 
+        tray_t = [paso.t for paso in edo_rk4.pasos]
+        tray_euler = [paso.y for paso in edo_e.pasos]
+        tray_heun = [paso.y for paso in edo_h.pasos]
+        tray_rk4 = [paso.y for paso in edo_rk4.pasos]
+        tray_exacta = [paso.y_exacto for paso in edo_rk4.pasos]
+
         return _json_ok(
             {
                 "caso": {
@@ -553,11 +583,11 @@ def api_caso_practico_integrado():
                         },
                     },
                     "trayectorias": {
-                        "t": [p.t for p in edo_rk4.pasos],
-                        "euler": [p.y for p in edo_e.pasos],
-                        "heun": [p.y for p in edo_h.pasos],
-                        "rk4": [p.y for p in edo_rk4.pasos],
-                        "exacta": [p.y_exacto for p in edo_rk4.pasos],
+                        "t": tray_t,
+                        "euler": tray_euler,
+                        "heun": tray_heun,
+                        "rk4": tray_rk4,
+                        "exacta": tray_exacta,
                     },
                 },
                 "visualizacion": {
@@ -574,7 +604,7 @@ def api_caso_practico_integrado():
             }
         )
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 @app.route("/api/edo/rk4", methods=["POST"])
@@ -582,7 +612,7 @@ def api_rk4():
     try:
         return _api_edo(runge_kutta_4, _body())
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 
@@ -610,7 +640,7 @@ def api_evaluar_curva():
                 ys.append(None)
         return _json_ok({"xs": xs, "ys": ys})
     except Exception as exc:
-        return _json_err(exc)
+        return _json_err(str(exc))
 
 
 # ---------------------------------------------------------------------------

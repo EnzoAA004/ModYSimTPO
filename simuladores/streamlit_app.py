@@ -155,19 +155,21 @@ def _panel_montecarlo() -> None:
 def _panel_edo() -> None:
     metodo = st.selectbox("Metodo EDO", ["Euler", "Heun", "RK4"])
     ode_expr = st.text_input("f(t, y)", value="y")
-    solucion_exacta = st.text_input("Solucion exacta opcional", value="exp(t)")
     t0 = st.number_input("t0", value=0.0)
-    y0 = st.number_input("y0", value=1.0)
+    y0 = st.number_input("y(t0)", value=1.0)
+    tf = st.number_input("tf", value=1.0)
     h = st.number_input("h", value=0.1, format="%.10f")
-    pasos = st.number_input("pasos", value=10, min_value=1)
     if st.button("Resolver EDO", use_container_width=True):
         if metodo == "Euler":
-            resultado = euler(ode_expr, t0, y0, float(h), int(pasos), solucion_exacta or None)
+            resultado = euler(ode_expr, t0, y0, float(h), tf=float(tf))
         elif metodo == "Heun":
-            resultado = heun(ode_expr, t0, y0, float(h), int(pasos), solucion_exacta or None)
+            resultado = heun(ode_expr, t0, y0, float(h), tf=float(tf))
         else:
-            resultado = runge_kutta_4(ode_expr, t0, y0, float(h), int(pasos), solucion_exacta or None)
+            resultado = runge_kutta_4(ode_expr, t0, y0, float(h), tf=float(tf))
         st.success(resultado.mensaje)
+        exacta_expr = resultado.metadatos.get("solucion_exacta_expr")
+        if exacta_expr:
+            st.info(f"Solucion exacta detectada: y(t) = {exacta_expr}")
         _mostrar_dataframe([asdict(paso) for paso in resultado.pasos])
         st.plotly_chart(grafico_trayectoria_edo(resultado), use_container_width=True)
 

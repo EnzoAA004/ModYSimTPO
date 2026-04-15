@@ -41,12 +41,16 @@ def biseccion(
         punto_medio = (izquierda + derecha) / 2.0
         f_medio = f(punto_medio)
         err_abs = abs(derecha - izquierda) / 2.0
+        error_global = abs(f_medio)
+        error_local = err_abs
         iteraciones.append(
             RootIteration(
                 iteracion=iteracion,
                 aproximacion=punto_medio,
                 error_absoluto=err_abs,
                 error_relativo=error_relativo_aproximado(punto_medio, iteraciones[-1].aproximacion) if iteraciones else None,
+                error_local=error_local,
+                error_global=error_global,
                 detalles={"a": izquierda, "b": derecha, "f_aprox": f_medio},
             )
         )
@@ -78,12 +82,16 @@ def punto_fijo(
     for iteracion in range(1, max_iter + 1):
         siguiente = g(actual)
         err_abs = error_absoluto(siguiente, actual)
+        error_global = abs(siguiente - actual) # Para punto fijo, el residuo g(x)-x es igual a x_n+1 - x_n
+        error_local = err_abs
         iteraciones.append(
             RootIteration(
                 iteracion=iteracion,
                 aproximacion=siguiente,
                 error_absoluto=err_abs,
                 error_relativo=error_relativo_aproximado(siguiente, actual),
+                error_local=error_local,
+                error_global=error_global,
                 detalles={"x_anterior": actual},
             )
         )
@@ -120,12 +128,16 @@ def newton_raphson(
         siguiente = actual - fx / dfx
         fx_sig = f(siguiente)
         err_abs = error_absoluto(siguiente, actual)
+        error_global = abs(fx_sig)
+        error_local = err_abs
         iteraciones.append(
             RootIteration(
                 iteracion=iteracion,
                 aproximacion=siguiente,
                 error_absoluto=err_abs,
                 error_relativo=error_relativo_aproximado(siguiente, actual),
+                error_local=error_local,
+                error_global=error_global,
                 detalles={"x_anterior": actual, "f_aprox": fx_sig, "f_actual": fx, "df_actual": dfx},
             )
         )

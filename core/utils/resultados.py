@@ -12,6 +12,8 @@ class RootIteration:
     aproximacion: float
     error_absoluto: float
     error_relativo: Optional[float]
+    error_local: Optional[float] = None
+    error_global: Optional[float] = None
     detalles: Dict[str, float] = field(default_factory=dict)
 
 
@@ -26,12 +28,24 @@ class RootResult:
 
 
 @dataclass
+class InterpolationStep:
+    iteracion: int
+    h: Optional[float]
+    x: float
+    P_x: float
+    y_exacto: Optional[float] = None
+    error_local: Optional[float] = None
+    error_global: Optional[float] = None
+    error_relativo: Optional[float] = None
+
+@dataclass
 class InterpolationResult:
     metodo: str
     valor_interpolado: float
     x_eval: float
     puntos: List[tuple[float, float]]
     mensaje: str
+    pasos: List[InterpolationStep] = field(default_factory=list)
     metadatos: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -63,6 +77,8 @@ class ODEStep:
     y: float
     y_exacto: Optional[float] = None
     error_absoluto: Optional[float] = None
+    error_local: Optional[float] = None
+    error_global: Optional[float] = None
 
 
 @dataclass

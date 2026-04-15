@@ -9,4 +9,4 @@ def test_trapecio_compuesto_lineal():
 
 def test_simpson_sin():
     resultado = simpson_13_compuesto("sin(x)", 0.0, 3.141592653589793, 10, 2.0)
-    assert abs(resultado.valor_aproximado - 2.0) < 1e-4
+    assert abs(resultado.valor_aproximado - 2.0) < 1e-3

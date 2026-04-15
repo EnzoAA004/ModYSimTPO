@@ -90,7 +90,7 @@
     }
 
     /** Render HTML table from array of objects */
-    function renderTable(rows, columns = null) {
+    function renderTable(rows, columns = null, highlightFn = null) {
         if (!rows || rows.length === 0) return '<p style="color:var(--text-muted);padding:1rem;">Sin datos.</p>';
         const keys = columns || Object.keys(rows[0]);
 
@@ -98,8 +98,12 @@
             const map = {
                 iteracion: 'Iteración', aproximacion: 'Aproximación',
                 error_absoluto: 'Error Abs', error_relativo: 'Error Rel',
+                error_local: 'Error Local', error_global: 'Error Global',
+                metodo: 'Método', convergio: 'Convergió', valor: 'Valor',
+                punto_objetivo: 'Punto objetivo', pasos: 'Pasos',
+                error_local_final: 'Error Local Final', error_global_final: 'Error Global Final',
                 indice: '#', x: 'x', fx: 'f(x)', peso: 'Peso', aporte: 'Aporte',
-                paso: 'Paso', t: 't', y: 'y', y_exacto: 'y exacto',
+                paso: 'Paso', t: 't', y: 'y', y_exacto: 'y exacto', P_x: 'P(x)',
             };
             return map[k] || k;
         };
@@ -116,9 +120,11 @@
         };
 
         const header = keys.map(k => `<th>${prettyName(k)}</th>`).join('');
-        const body = rows.map((r, idx) =>
-            `<tr>${keys.map(k => `<td>${formatNum(r[k])}</td>`).join('')}</tr>`
-        ).join('');
+        const body = rows.map((r, idx) => {
+            const isHighlight = highlightFn && highlightFn(r, idx, rows);
+            const trClass = isHighlight ? 'class="table-success-row"' : '';
+            return `<tr ${trClass}>${keys.map(k => `<td>${formatNum(r[k])}</td>`).join('')}</tr>`;
+        }).join('');
         return `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
     }
 
@@ -236,8 +242,11 @@
             showMessage($('#raices-msg'), res.mensaje, res.convergio, `x* ≈ ${res.aproximacion}`);
 
             // Table
-            const cols = ['iteracion', 'aproximacion', 'error_absoluto'];
-            $('#raices-tabla').innerHTML = renderTable(res.iteraciones, cols);
+            const cols = ['iteracion', 'aproximacion', 'error_local', 'error_global'];
+            $('#raices-tabla').innerHTML = renderTable(res.iteraciones, cols, (r, idx, rows) => {
+                // Return true si es la utlima iteracion y el metodo convergio
+                return res.convergio && idx === rows.length - 1;
+            });
 
             // Convergence chart (log scale for better visualization)
             const iters = res.iteraciones.map(p => p.iteracion);
@@ -265,6 +274,49 @@
         } finally {
             setLoading(btn, false);
             $('#status-text').textContent = 'Listo';
+        }
+    });
+
+    on('#btn-raices-comparar', 'click', async () => {
+        const btn = $('#btn-raices-comparar');
+        if (!btn) return;
+        try {
+            setLoading(btn, true);
+            const tol = $('#raices-tol').value;
+            const maxIter = $('#raices-maxiter').value;
+            const pBis = { f_expr: $('#raices-f-expr').value, a: $('#raices-a').value, b: $('#raices-b').value, tolerancia: tol, max_iter: maxIter };
+            const pPf = { g_expr: $('#raices-g-expr').value, x0: $('#raices-pf-x0').value, tolerancia: tol, max_iter: maxIter };
+            const pNr = { f_expr: $('#raices-nr-f').value, df_expr: $('#raices-nr-df').value || '', x0: $('#raices-nr-x0').value, tolerancia: tol, max_iter: maxIter };
+            const pAit = { g_expr: $('#raices-aitken-g').value, x0: $('#raices-aitken-x0').value, tolerancia: tol, max_iter: maxIter };
+            
+            // Promise.allSettled avoids failure if one specific input lacks
+            const results = await Promise.allSettled([
+                API.biseccion(pBis), API.puntoFijo(pPf), API.newtonRaphson(pNr), API.aitken(pAit)
+            ]);
+            const labels = ['Bisección', 'Punto Fijo', 'Newton-Raphson', 'Aitken'];
+            const summary = labels.map((metodo, i) => {
+                const r = results[i];
+                if (r.status === 'fulfilled') {
+                    const d = r.value;
+                    const finalIt = d.iteraciones.length ? d.iteraciones[d.iteraciones.length - 1] : {};
+                    return {
+                        metodo, aproximacion: d.aproximacion,
+                        iteraciones: d.iteraciones.length,
+                        error_local_final: finalIt.error_local,
+                        error_global_final: finalIt.error_global,
+                        convergio: d.convergio ? 'Sí' : 'No'
+                    };
+                } else {
+                    return { metodo, aproximacion: null, iteraciones: null, error_local_final: null, error_global_final: null, convergio: 'Error' };
+                }
+            });
+            $('#raices-resumen-card').style.display = '';
+            $('#raices-resumen').innerHTML = renderTable(summary, Object.keys(summary[0]), (row) => row.convergio === 'Sí');
+            toast('Comparación completada ✓', 'success');
+        } catch(e) {
+            toast(e.message, 'error');
+        } finally {
+            setLoading(btn, false);
         }
     });
 
@@ -334,12 +386,66 @@
             $('#status-text').textContent = 'Calculando…';
 
             const xEval = $('#interp-xeval').value;
-            const res = await API.lagrange({ puntos, x_eval: xEval });
+            const hVal = $('#interp-h').value || null;
+            const exactaExpr = $('#interp-exacta')?.value?.trim() || null;
+            const res = await API.lagrange({ puntos, x_eval: xEval, h: hVal, f_exacta_expr: exactaExpr });
             const area = $('#interp-resultado');
             area.style.display = '';
 
             showMessage($('#interp-msg'), res.mensaje, true,
                 `P(${res.x_eval}) = ${res.valor_interpolado.toFixed(10)}`);
+
+            if (res.pasos && res.pasos.length > 0) {
+                const hasExact = res.pasos.some(p => p.y_exacto != null);
+                const cols = hasExact
+                    ? ['iteracion', 'h', 'x', 'P_x', 'y_exacto', 'error_local', 'error_global', 'error_relativo']
+                    : ['iteracion', 'h', 'x', 'P_x', 'error_local'];
+                const targetX = Number(xEval);
+                const highlightIdx = Number.isFinite(targetX)
+                    ? res.pasos.reduce((bestIdx, row, idx, rows) => {
+                        if (!rows.length) return -1;
+                        const bestDistance = Math.abs(rows[bestIdx].x - targetX);
+                        const currentDistance = Math.abs(row.x - targetX);
+                        return currentDistance <= bestDistance ? idx : bestIdx;
+                    }, 0)
+                    : -1;
+                $('#interp-tabla').innerHTML = renderTable(res.pasos, cols, (_row, idx) => idx === highlightIdx);
+            } else {
+                $('#interp-tabla').innerHTML = '';
+            }
+
+            const lastStep = res.pasos && res.pasos.length ? res.pasos[res.pasos.length - 1] : null;
+            const interpSummary = [{
+                metodo: 'Lagrange',
+                punto_objetivo: res.x_eval,
+                valor: res.valor_interpolado,
+                pasos: res.pasos.length,
+                error_local_final: lastStep?.error_local ?? null,
+                error_global_final: lastStep?.error_global ?? null,
+            }];
+
+            let derivSummary;
+            try {
+                const derivRes = await API.derivadaCentral({
+                    f_expr: $('#deriv-expr').value,
+                    x: $('#deriv-x').value,
+                    h: $('#deriv-h').value,
+                });
+                derivSummary = [{
+                    metodo: 'Diferencia central',
+                    punto_objetivo: $('#deriv-x').value,
+                    valor: derivRes.derivada,
+                    pasos: 1,
+                    error_local_final: null,
+                    error_global_final: null,
+                }];
+            } catch {
+                derivSummary = null;
+            }
+
+            const interpResumenRows = derivSummary ? [...interpSummary, ...derivSummary] : interpSummary;
+            $('#interp-resumen-card').style.display = '';
+            $('#interp-resumen').innerHTML = renderTable(interpResumenRows, Object.keys(interpResumenRows[0]), (row) => row.metodo === 'Lagrange');
 
             // Chart: polynomial curve + nodes + evaluation point
             const xs_data = puntos.map(p => p[0]);
@@ -486,6 +592,47 @@
         }
     });
 
+    on('#btn-integ-comparar', 'click', async () => {
+        const btn = $('#btn-integ-comparar');
+        if (!btn) return;
+        try {
+            setLoading(btn, true);
+            const payload = {
+                f_expr: $('#integ-f').value,
+                a: $('#integ-a').value,
+                b: $('#integ-b').value,
+                n: $('#integ-n').value,
+                valor_exacto: $('#integ-exacto').value.trim() || null,
+            };
+            const results = await Promise.allSettled([
+                API.trapecio(payload), API.simpson13(payload), API.simpson38(payload), API.rectangulo(payload), API.gaussLegendre(payload)
+            ]);
+            const labels = ['Trapecio', 'Simpson 1/3', 'Simpson 3/8', 'Rectángulo', 'Gauss-Legendre'];
+            const summary = labels.map((metodo, i) => {
+                const r = results[i];
+                if (r.status === 'fulfilled') {
+                    const d = r.value;
+                    return {
+                        metodo, valor: d.valor_aproximado,
+                        error_absoluto: d.error_absoluto,
+                        error_relativo: d.error_relativo
+                    };
+                } else {
+                    return { metodo, valor: null, error_absoluto: null, error_relativo: null };
+                }
+            });
+            $('#integ-resumen-card').style.display = '';
+            // Resaltar el de menor error absoluto
+            const minErr = Math.min(...summary.filter(s => s.error_absoluto !== null && !isNaN(s.error_absoluto)).map(s => s.error_absoluto));
+            $('#integ-resumen').innerHTML = renderTable(summary, Object.keys(summary[0]), (row) => row.error_absoluto === minErr);
+            toast('Comparación completada ✓', 'success');
+        } catch(e) {
+            toast(e.message, 'error');
+        } finally {
+            setLoading(btn, false);
+        }
+    });
+
     // ==================== MONTE CARLO ====================
 
     const mcModo = $('#mc-modo');
@@ -527,6 +674,43 @@
             const label = modo === 'integral' ? 'Estimación' : 'π ≈';
             showMessage($('#mc-msg'), res.mensaje, true,
                 `${label} ${res.estimacion.toFixed(10)}  |  IC ${(res.confianza*100).toFixed(0)}%: [${res.ic_bajo.toFixed(6)}, ${res.ic_alto.toFixed(6)}]`);
+
+            const mcComparisons = await Promise.allSettled([
+                API.mcIntegral({
+                    f_expr: $('#mc-f').value,
+                    a: $('#mc-a').value,
+                    b: $('#mc-b').value,
+                    n: $('#mc-n').value,
+                    seed: $('#mc-seed').value || null,
+                }),
+                API.mcPi({
+                    n: $('#mc-n').value,
+                    seed: $('#mc-seed').value || null,
+                }),
+            ]);
+            const mcSummary = [
+                mcComparisons[0].status === 'fulfilled'
+                    ? {
+                        metodo: 'Integral MC',
+                        estimacion: mcComparisons[0].value.estimacion,
+                        error_estandar: mcComparisons[0].value.error_estandar,
+                        ic_bajo: mcComparisons[0].value.ic_bajo,
+                        ic_alto: mcComparisons[0].value.ic_alto,
+                    }
+                    : { metodo: 'Integral MC', estimacion: null, error_estandar: null, ic_bajo: null, ic_alto: null },
+                mcComparisons[1].status === 'fulfilled'
+                    ? {
+                        metodo: 'π Geométrico',
+                        estimacion: mcComparisons[1].value.estimacion,
+                        error_estandar: mcComparisons[1].value.error_estandar,
+                        ic_bajo: mcComparisons[1].value.ic_bajo,
+                        ic_alto: mcComparisons[1].value.ic_alto,
+                    }
+                    : { metodo: 'π Geométrico', estimacion: null, error_estandar: null, ic_bajo: null, ic_alto: null },
+            ];
+            $('#mc-resumen-card').style.display = '';
+            const minErr = Math.min(...mcSummary.filter(s => s.error_estandar !== null && !isNaN(s.error_estandar)).map(s => s.error_estandar));
+            $('#mc-resumen').innerHTML = renderTable(mcSummary, Object.keys(mcSummary[0]), (row) => row.error_estandar === minErr);
 
             // Histogram with KDE-like smooth overlay
             Plotly.newPlot('mc-chart', [{
@@ -581,11 +765,10 @@
         try {
             const payload = {
                 ode_expr: $('#edo-expr').value,
-                solucion_exacta: $('#edo-exacta').value.trim() || null,
                 t0: $('#edo-t0').value,
                 y0: $('#edo-y0').value,
                 h: $('#edo-h').value,
-                pasos: $('#edo-pasos').value,
+                tf: $('#edo-tf').value,
             };
 
             setLoading(btn, true);
@@ -597,13 +780,31 @@
             area.style.display = '';
 
             const lastStep = res.pasos[res.pasos.length - 1];
-            showMessage($('#edo-msg'), res.mensaje, true,
-                `y(${lastStep.t.toFixed(2)}) ≈ ${lastStep.y.toFixed(10)}`);
+            const exactaInfo = res.solucion_exacta
+                ? `<br><small>Solución exacta: y(t) = ${res.solucion_exacta}</small>`
+                : '';
+            showMessage(
+                $('#edo-msg'),
+                `${res.mensaje}${exactaInfo}`,
+                true,
+                `y(${lastStep.t.toFixed(2)}) ≈ ${lastStep.y.toFixed(10)}`
+            );
 
             // Table
             const hasExact = res.pasos.some(p => p.y_exacto != null);
-            const cols = hasExact ? ['paso', 't', 'y', 'y_exacto', 'error_absoluto'] : ['paso', 't', 'y'];
-            $('#edo-tabla').innerHTML = renderTable(res.pasos, cols);
+            const cols = hasExact ? ['paso', 't', 'y', 'y_exacto', 'error_local', 'error_global'] : ['paso', 't', 'y', 'error_local'];
+            const convergenceIndex = hasExact
+                ? res.pasos.reduce((bestIdx, p, idx, arr) => {
+                    if (p.error_global == null || Number.isNaN(p.error_global)) return bestIdx;
+                    if (bestIdx === -1) return idx;
+                    return p.error_global < arr[bestIdx].error_global ? idx : bestIdx;
+                }, -1)
+                : res.pasos.length - 1;
+            $('#edo-tabla').innerHTML = renderTable(
+                res.pasos,
+                cols,
+                (_row, idx) => idx === convergenceIndex
+            );
 
             // Chart: trajectories
             const traces = [{
@@ -660,6 +861,48 @@
         } finally {
             setLoading(btn, false);
             $('#status-text').textContent = 'Listo';
+        }
+    });
+
+    on('#btn-edo-comparar', 'click', async () => {
+        const btn = $('#btn-edo-comparar');
+        if (!btn) return;
+        try {
+            setLoading(btn, true);
+            const payload = {
+                ode_expr: $('#edo-expr').value,
+                t0: $('#edo-t0').value,
+                y0: $('#edo-y0').value,
+                h: $('#edo-h').value,
+                tf: $('#edo-tf').value,
+            };
+            const results = await Promise.allSettled([
+                API.euler(payload), API.heun(payload), API.rk4(payload)
+            ]);
+            const labels = ['Euler', 'Heun', 'Runge-Kutta 4'];
+            const summary = labels.map((metodo, i) => {
+                const r = results[i];
+                if (r.status === 'fulfilled') {
+                    const d = r.value;
+                    const finalIt = d.pasos.length ? d.pasos[d.pasos.length - 1] : {};
+                    return {
+                        metodo, y_final: finalIt.y,
+                        error_local_final: finalIt.error_local,
+                        error_global_final: finalIt.error_global
+                    };
+                } else {
+                    return { metodo, y_final: null, error_local_final: null, error_global_final: null };
+                }
+            });
+            $('#edo-resumen-card').style.display = '';
+            // Resaltar menor error global
+            const minErr = Math.min(...summary.filter(s => s.error_global_final !== null && !isNaN(s.error_global_final)).map(s => s.error_global_final));
+            $('#edo-resumen').innerHTML = renderTable(summary, Object.keys(summary[0]), (row) => row.error_global_final === minErr);
+            toast('Comparación completada ✓', 'success');
+        } catch(e) {
+            toast(e.message, 'error');
+        } finally {
+            setLoading(btn, false);
         }
     });
 

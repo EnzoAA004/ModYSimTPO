@@ -171,10 +171,19 @@
                     <button id="btn-raices" class="btn-execute">
                         <span class="btn-icon">▶</span> Ejecutar
                     </button>
+                    <button id="btn-raices-comparar" class="btn-execute" style="margin-top: 1rem; width: 100%;">
+                        <span class="btn-icon">📊</span> Comparar Todos los Métodos
+                    </button>
                 </div>
             </div>
             <!-- Resultados -->
             <div id="raices-resultado" class="result-area" style="display:none;">
+                <div class="card" id="raices-resumen-card" style="display:none;">
+                    <div class="card-header"><h3>Resumen Comparativo</h3></div>
+                    <div class="card-body">
+                        <div id="raices-resumen" class="table-wrapper"></div>
+                    </div>
+                </div>
                 <div class="card">
                     <div class="card-header"><h3>Resultado</h3></div>
                     <div class="card-body">
@@ -203,9 +212,19 @@
                     <div id="interp-points-list" class="points-list">
                         <!-- Filas dinámicas generadas por JS -->
                     </div>
-                    <div class="field-group" style="margin-top:1rem;">
-                        <label for="interp-xeval">x a evaluar</label>
-                        <input type="text" id="interp-xeval" class="input-math" data-keyboard="true" value="1.5">
+                    <div class="field-row">
+                        <div class="field-group" style="margin-top:1rem;">
+                            <label for="interp-xeval">x a evaluar</label>
+                            <input type="text" id="interp-xeval" class="input-math" data-keyboard="true" value="1.5">
+                        </div>
+                        <div class="field-group" style="margin-top:1rem;">
+                            <label for="interp-h">Paso de tabla (h) <small>(opcional)</small></label>
+                            <input type="text" id="interp-h" class="input-math" data-keyboard="true" value="0.5" placeholder="Ej: 0.5">
+                        </div>
+                    </div>
+                    <div class="field-group">
+                        <label for="interp-exacta">Función exacta <small>(opcional, para errores)</small></label>
+                        <input type="text" id="interp-exacta" class="input-math" data-keyboard="true" placeholder="ej: x**2">
                     </div>
                     <button id="btn-interp" class="btn-execute">
                         <span class="btn-icon">▶</span> Interpolar
@@ -241,10 +260,17 @@
                 </div>
             </div>
             <div id="interp-resultado" class="result-area" style="display:none;">
+                <div class="card" id="interp-resumen-card" style="display:none;">
+                    <div class="card-header"><h3>Resumen Comparativo</h3></div>
+                    <div class="card-body">
+                        <div id="interp-resumen" class="table-wrapper"></div>
+                    </div>
+                </div>
                 <div class="card">
                     <div class="card-header"><h3>Resultado</h3></div>
                     <div class="card-body">
                         <div id="interp-msg" class="result-message"></div>
+                        <div id="interp-tabla" class="table-wrapper" style="margin-top: 1rem; margin-bottom: 1rem;"></div>
                         <div id="interp-chart" class="chart-container"></div>
                     </div>
                 </div>
@@ -292,9 +318,18 @@
                     <button id="btn-integ" class="btn-execute">
                         <span class="btn-icon">▶</span> Integrar
                     </button>
+                    <button id="btn-integ-comparar" class="btn-execute" style="margin-top: 1rem; width: 100%;">
+                        <span class="btn-icon">📊</span> Comparar Todos los Métodos
+                    </button>
                 </div>
             </div>
             <div id="integ-resultado" class="result-area" style="display:none;">
+                <div class="card" id="integ-resumen-card" style="display:none;">
+                    <div class="card-header"><h3>Resumen Comparativo</h3></div>
+                    <div class="card-body">
+                        <div id="integ-resumen" class="table-wrapper"></div>
+                    </div>
+                </div>
                 <div class="card">
                     <div class="card-header"><h3>Resultado</h3></div>
                     <div class="card-body">
@@ -349,6 +384,12 @@
                 </div>
             </div>
             <div id="mc-resultado" class="result-area" style="display:none;">
+                <div class="card" id="mc-resumen-card" style="display:none;">
+                    <div class="card-header"><h3>Resumen Comparativo</h3></div>
+                    <div class="card-body">
+                        <div id="mc-resumen" class="table-wrapper"></div>
+                    </div>
+                </div>
                 <div class="card">
                     <div class="card-header"><h3>Resultado</h3></div>
                     <div class="card-body">
@@ -375,17 +416,13 @@
                         <label for="edo-expr">f(t, y)</label>
                         <input type="text" id="edo-expr" class="input-math" data-keyboard="true" value="y">
                     </div>
-                    <div class="field-group">
-                        <label for="edo-exacta">Solución exacta <small>(opcional)</small></label>
-                        <input type="text" id="edo-exacta" class="input-math" data-keyboard="true" value="exp(t)" placeholder="ej: exp(t)">
-                    </div>
                     <div class="field-row">
                         <div class="field-group">
                             <label for="edo-t0">t₀</label>
                             <input type="text" id="edo-t0" class="input-math" data-keyboard="true" value="0">
                         </div>
                         <div class="field-group">
-                            <label for="edo-y0">y₀</label>
+                            <label for="edo-y0">y(t₀)</label>
                             <input type="text" id="edo-y0" class="input-math" data-keyboard="true" value="1">
                         </div>
                     </div>
@@ -395,16 +432,25 @@
                             <input type="text" id="edo-h" class="input-math" data-keyboard="true" value="0.1">
                         </div>
                         <div class="field-group">
-                            <label for="edo-pasos">Pasos</label>
-                            <input type="text" id="edo-pasos" class="input-math" data-keyboard="true" value="10">
+                            <label for="edo-tf">t_f</label>
+                            <input type="text" id="edo-tf" class="input-math" data-keyboard="true" value="1">
                         </div>
                     </div>
                     <button id="btn-edo" class="btn-execute">
                         <span class="btn-icon">▶</span> Resolver EDO
                     </button>
+                    <button id="btn-edo-comparar" class="btn-execute" style="margin-top: 1rem; width: 100%;">
+                        <span class="btn-icon">📊</span> Comparar Todos los Métodos
+                    </button>
                 </div>
             </div>
             <div id="edo-resultado" class="result-area" style="display:none;">
+                <div class="card" id="edo-resumen-card" style="display:none;">
+                    <div class="card-header"><h3>Resumen Comparativo</h3></div>
+                    <div class="card-body">
+                        <div id="edo-resumen" class="table-wrapper"></div>
+                    </div>
+                </div>
                 <div class="card">
                     <div class="card-header"><h3>Resultado</h3></div>
                     <div class="card-body">
