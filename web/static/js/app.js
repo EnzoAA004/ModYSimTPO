@@ -667,6 +667,17 @@
 
     const CASE_CHARTS = {};
 
+    function caseAppNum(res, ...keys) {
+        const app = res?.aplicacion || {};
+        for (const key of keys) {
+            const value = app[key];
+            if (value !== undefined && value !== null && Number.isFinite(Number(value))) {
+                return Number(value);
+            }
+        }
+        return Number.NaN;
+    }
+
     function initCaseChart(id) {
         const el = document.getElementById(id);
         if (!el || typeof echarts === 'undefined') return null;
@@ -678,16 +689,17 @@
     }
 
     function buildCaseKpis(res) {
-        const rf = res.aplicacion.radio_hornalla_m;
-        const rs = res.aplicacion.radio_superficie_m;
+        const rf = caseAppNum(res, 'radio_hornalla_m');
+        const rs = caseAppNum(res, 'radio_superficie_m', 'radio_disco_m');
         const areaRatio = rs > 0 ? (rf * rf) / (rs * rs) : 0;
         const cobertura = Math.max(0, Math.min(100, areaRatio * 100));
-        const potencia = res.aplicacion.potencia_hornalla_kw;
+        const potencia = caseAppNum(res, 'potencia_hornalla_kw', 'potencia_hornalla');
+        const tempSegura = caseAppNum(res, 'temperatura_segura_c');
         const kpis = [
             {
                 title: 'Zona segura',
                 value: `${res.aplicacion.distancia_segura_m.toFixed(3)} m`,
-                note: `Meta: <= ${res.aplicacion.temperatura_segura_c.toFixed(0)} C`,
+                note: `Meta: <= ${tempSegura.toFixed(0)} C`,
             },
             {
                 title: 'Potencia',
@@ -722,11 +734,12 @@
     function buildSimpleCaseStory(res) {
         const el = $('#caso-historia');
         if (!el) return;
-        const amb = res.aplicacion.ambiente_c;
-        const seg = res.aplicacion.temperatura_segura_c;
+        const amb = caseAppNum(res, 'ambiente_c');
+        const seg = caseAppNum(res, 'temperatura_segura_c');
         const safe = res.aplicacion.distancia_segura_m;
         const finalT = res.edo.metodos.rk4.y_final;
-        const finalDelta = Math.abs(finalT - res.aplicacion.temp_fuente_c);
+        const tempFuente = caseAppNum(res, 'temp_fuente_c', 'temp_objetivo_sarten_c');
+        const finalDelta = Math.abs(finalT - tempFuente);
         const grad = res.interpolacion.derivada_t3;
         const ritmo = grad < -40 ? 'rápido' : grad < -20 ? 'moderado' : 'suave';
 
@@ -763,12 +776,14 @@
         const el = $('#caso-badges');
         if (!el) return;
         const buildBadge = (label, value) => `<span class="caso-badge"><strong>${label}:</strong> ${value}</span>`;
+        const radioSuperficie = caseAppNum(res, 'radio_superficie_m', 'radio_disco_m');
+        const tempFuente = caseAppNum(res, 'temp_fuente_c', 'temp_objetivo_sarten_c');
         el.innerHTML = [
             buildBadge('Radio hornalla', `${res.aplicacion.radio_hornalla_m.toFixed(2)} m`),
-            buildBadge('Superficie analizada', `${res.aplicacion.radio_superficie_m.toFixed(2)} m`),
-            buildBadge('Temperatura fuente', `${res.aplicacion.temp_fuente_c.toFixed(1)} °C`),
+            buildBadge('Superficie analizada', `${radioSuperficie.toFixed(2)} m`),
+            buildBadge('Temperatura fuente', `${tempFuente.toFixed(1)} °C`),
             buildBadge('Ambiente', `${res.aplicacion.ambiente_c.toFixed(1)} °C`),
-            buildBadge('Intensidad', res.caso.intensidad),
+            buildBadge('Intensidad', res.caso?.intensidad ?? 'pro'),
         ].join('');
     }
 
@@ -783,7 +798,7 @@
             throw new Error('No se pudieron inicializar los charts ECharts.');
         }
 
-        const surfaceRadius = res.aplicacion.radio_superficie_m;
+        const surfaceRadius = caseAppNum(res, 'radio_superficie_m', 'radio_disco_m');
         chartRaices.setOption({
             backgroundColor: 'transparent',
             tooltip: {
@@ -1104,7 +1119,7 @@
         if (!el) return;
 
         const safe   = res.aplicacion.distancia_segura_m;
-        const safeT  = res.aplicacion.temperatura_segura_c;
+        const safeT  = caseAppNum(res, 'temperatura_segura_c');
         const nwIter = res.raices.newton_raphson.iteraciones;
         const biIter = res.raices.biseccion.iteraciones;
         const aiIter = res.raices.aitken.iteraciones;
@@ -1124,9 +1139,9 @@
 
         const intDiff = Math.abs(s13 - mcI);
         const intPct  = s13 !== 0 ? ((intDiff / Math.abs(s13)) * 100).toFixed(2) : '—';
-        const rHornalla = res.aplicacion.radio_hornalla_m;
-        const tFuente = res.aplicacion.temp_fuente_c;
-        const potencia = res.aplicacion.potencia_hornalla_kw;
+        const rHornalla = caseAppNum(res, 'radio_hornalla_m');
+        const tFuente = caseAppNum(res, 'temp_fuente_c', 'temp_objetivo_sarten_c');
+        const potencia = caseAppNum(res, 'potencia_hornalla_kw', 'potencia_hornalla');
 
         const items = [
             {
@@ -1191,6 +1206,19 @@
         Object.values(CASE_CHARTS).forEach(ch => ch && ch.resize());
     });
 
+    function getCaseInputValue(id, fallback = '') {
+        const el = document.getElementById(id);
+        if (!el) return fallback;
+        return (el.value ?? '').toString();
+    }
+
+    function getCaseInputNumber(id, fallback = NaN) {
+        const raw = getCaseInputValue(id, '');
+        if (raw === '') return fallback;
+        const num = Number.parseFloat(raw);
+        return Number.isFinite(num) ? num : fallback;
+    }
+
     on('#btn-caso-practico', 'click', async () => {
         const btn = $('#btn-caso-practico');
         if (!btn) return;
@@ -1198,29 +1226,38 @@
             setLoading(btn, true);
             $('#status-text').textContent = 'Ejecutando escenario…';
 
-            const intensidad = $('#caso-intensidad').value;
-            const seed = $('#caso-seed').value.trim() || '42';
-            const radioHornalla = parseFloat($('#caso-radio-hornalla').value);
-            const radioSuperficie = parseFloat($('#caso-radio-superficie').value);
-            const tempFuente = parseFloat($('#caso-temp-fuente').value);
-            const ambiente = parseFloat($('#caso-temp-ambiente').value);
-            const tempSegura = parseFloat($('#caso-temp-segura').value);
-            const potencia = parseFloat($('#caso-potencia').value);
+            const intensidad = getCaseInputValue('caso-intensidad', 'pro');
+            const seed = getCaseInputValue('caso-seed', '42').trim() || '42';
+            const radioHornalla = getCaseInputNumber('caso-radio-hornalla', 0.11);
+            const ambiente = getCaseInputNumber('caso-ambiente', 24.0);
+            const tempSegura = getCaseInputNumber('caso-temperatura-segura', 60.0);
+            const potencia = getCaseInputNumber('caso-potencia', 320.0);
+            const alpha = getCaseInputNumber('caso-alpha', 3.2);
+            const perdidaAire = getCaseInputNumber('caso-perdida-aire', 10.0);
+            const ruidoSensor = getCaseInputNumber('caso-ruido-sensor', 4.0);
+
+            const invalid = [radioHornalla, ambiente, tempSegura, potencia, alpha, perdidaAire, ruidoSensor]
+                .some(v => !Number.isFinite(v));
+            if (invalid) {
+                throw new Error('Revisá los parámetros: hay un valor vacío o inválido.');
+            }
+
             const profile = {
                 base: { mc_n: 6000, pi_n: 8000, cloud_n: 900, pasos: 12, h: 0.5 },
                 pro: { mc_n: 20000, pi_n: 25000, cloud_n: 1800, pasos: 20, h: 0.3 },
                 extremo: { mc_n: 50000, pi_n: 60000, cloud_n: 3000, pasos: 30, h: 0.2 },
-            }[intensidad];
+            }[intensidad] || { mc_n: 20000, pi_n: 25000, cloud_n: 1800, pasos: 20, h: 0.3 };
 
             const res = await API.casoPracticoIntegrado({
                 ...profile,
                 seed,
                 radio_hornalla_m: radioHornalla,
-                radio_superficie_m: radioSuperficie,
-                temp_fuente_c: tempFuente,
                 ambiente_c: ambiente,
-                temp_segura_c: tempSegura,
-                potencia_hornalla_kw: potencia,
+                temperatura_segura_c: tempSegura,
+                potencia_hornalla: potencia,
+                rapidez_disipacion: alpha,
+                perdida_lineal: perdidaAire,
+                ruido_sensor: ruidoSensor,
                 intensidad,
             });
             const area = $('#caso-resultado');
@@ -1243,7 +1280,7 @@
                 { bloque: 'Raíces · Aitken', valor: res.raices.aitken.aproximacion, detalle: `iter=${res.raices.aitken.iteraciones}` },
                 { bloque: 'Interpolación · T(r=0.38m)', valor: res.interpolacion.valor_interpolado, detalle: 'lectura intermedia' },
                 { bloque: 'Gradiente radial · dT/dr (r=0.30m)', valor: res.interpolacion.derivada_t3, detalle: 'diferencia central' },
-                { bloque: 'Integración · Simpson 1/3', valor: res.integracion.resultados.simpson13, detalle: `[0, ${res.aplicacion.radio_superficie_m.toFixed(2)}] m` },
+                { bloque: 'Integración · Simpson 1/3', valor: res.integracion.resultados.simpson13, detalle: `[0, ${caseAppNum(res, 'radio_superficie_m', 'radio_disco_m').toFixed(2)}] m` },
                 { bloque: 'Monte Carlo · Integral', valor: res.montecarlo.integral.estimacion, detalle: `IC95% [${res.montecarlo.integral.ic_bajo.toFixed(3)}, ${res.montecarlo.integral.ic_alto.toFixed(3)}]` },
                 { bloque: 'Monte Carlo · Pi', valor: res.montecarlo.pi.estimacion, detalle: `IC95% [${res.montecarlo.pi.ic_bajo.toFixed(3)}, ${res.montecarlo.pi.ic_alto.toFixed(3)}]` },
                 { bloque: 'EDO · Sartén final RK4', valor: res.edo.metodos.rk4.y_final, detalle: `error=${res.edo.metodos.rk4.error_final.toExponential(3)}` },
